@@ -10,16 +10,6 @@ token grammar rules:
 	identifier : letter followed by zero or more letters or numbers
 	base-10 literal : numeric character followed by zero or more numeric characters
 	string literal : quote followed by zero or more of any character, followed by quote
-
-in order to do all of this we need:
-	tokens
-	strings
-
-program loop:
-	open file for reading
-	read whole file into memory
-	parse tokens
-	write to output
 */
 
 #define typestruct typedef struct
@@ -31,6 +21,49 @@ program loop:
 #include<string.h>
 #include<ctype.h>
 
+/*
+Retrieves next token from the buffer, using delim as the function to determine delimitiing characters.
+*/
+char* getToken(char * buffer, int *index, int (*delim)(int))
+{
+	int bufindex   = *index;
+	int tokenStart = bufindex;
+	int tokenEnd   = 0;
+
+	while (delim(buffer[bufindex])) bufindex++;
+
+	tokenEnd = bufindex;
+	// token is chars from tokenStart (includes) to tokenEnd (excludes)
+
+	char* newId = (char*)malloc(tokenEnd-tokenStart + 1);
+
+	int newIdIndex = 0;
+	for (int i = tokenStart; i < tokenEnd; ++i)
+	{
+		newId[newIdIndex] = buffer[i];
+		newIdIndex++;
+	}
+
+	// null terminate new string
+	newId[newIdIndex] = 0;
+
+	// write new buffer index
+	*index = bufindex;
+
+	return newId;
+}
+
+/*
+Delimiting function for string literals
+*/
+int endquote(int ch)
+{
+	static int previousChar;
+	if ((ch == 0x22) && (previousChar != 0x5C)) return 0;
+	previousChar = ch;
+	return 1;
+}
+
 int main(int argc, char ** argv)
 {
 	/* reads from stdin */
@@ -41,13 +74,13 @@ int main(int argc, char ** argv)
 	while ((c = getchar()) != EOF) {
 		buffer[bufindex] = c;
 		bufindex++;
-		buffer[bufindex] = 0;
 	}
 
 	buffer[bufindex] = EOF;
 
 	/* begin parse */
 	char * currentToken;
+	char * tokenType;
 	bufindex = 0;
 
 	while(buffer[bufindex] != EOF) 
@@ -56,41 +89,99 @@ int main(int argc, char ** argv)
 		// WHITESPACE
 		if (isspace(buffer[bufindex]))
 		{
-			puts("whitespace");
-			fflush(stdout);
 			bufindex++;
 			continue;
 		}
 
 		// IDENTIFIERS
-		if (isalpha(buffer[bufindex]))
+		else if (isalpha(buffer[bufindex]))
 		{
-			int tokenStart = bufindex;
-			int tokenEnd   = 0;
+			currentToken = getToken(buffer, &bufindex, isalpha);
+			tokenType = "identifier";
+		}
 
-			while (isalpha(buffer[bufindex])) 
+		// NUMERIC LITERALS
+		else if (isdigit(buffer[bufindex]))
+		{
+			currentToken = getToken(buffer, &bufindex, isdigit);
+			tokenType = "numeric literal";
+		}
+
+		// STRING LITERAL
+		else if (buffer[bufindex] == '"')
+		{
+			bufindex++;
+			currentToken = getToken(buffer, &bufindex, endquote);
+			bufindex++;
+			tokenType = "string literal";
+		}
+
+		// LEFT PARENTHESES
+		else if (buffer[bufindex] == '(')
+		{
+			bufindex++;
+			currentToken = "(";
+			tokenType = "l paren";
+		}
+
+		// RIGHT PARENTHESES
+		else if (buffer[bufindex] == ')')
+		{
+			bufindex++;
+			currentToken = ")";
+			tokenType = "r paren";
+		}
+
+		// BRACES
+		else if (buffer[bufindex] == '{')
+		{
+			bufindex++;
+			currentToken = "{";
+			tokenType = "l brace";
+		}
+
+		// RIGHT BRACE
+		else if (buffer[bufindex] == '}')
+		{
+			bufindex++;
+			currentToken = "}";
+			tokenType = "r brace";
+		}
+
+		// ASSIGNMENT, EQUALITY
+		else if (buffer[bufindex] == '=')
+		{
+			bufindex++;
+			if (buffer[bufindex] == '=')
 			{
 				bufindex++;
-				if (buffer[bufindex] == EOF) break;
+				currentToken = "==";
+				tokenType = "equality";
 			}
-
-			tokenEnd = bufindex;
-			// token is chars from tokenStart (includes) to tokenEnd (excludes)
-
-			char* newId = (char*)malloc(tokenEnd-tokenStart + 1);
-			int newIdIndex = 0;
-			for (int i = tokenStart; i < tokenEnd; ++i)
+			else
 			{
-				newId[newIdIndex] = buffer[i];
-				newIdIndex++;
+				currentToken = "=";
+				tokenType = "assignment";
 			}
+		}
 
-			newId[newIdIndex] = 0;
+		// SEMICOLON
+		else if (buffer[bufindex] == ';')
+		{
+			bufindex++;
+			currentToken = ";";
+			tokenType = "semicolon";
+		}
 
-			printf("%s%s%s", "Token(identifier, \"", newId, "\")\n");
+		// UNRECOGNISED TOKEN
+		else
+		{
+			printf("[tokeniser] unrecognised token! num:%i, char:%c\n", buffer[bufindex], buffer[bufindex]);
+			bufindex++;
 			continue;
 		}
 
+		printf("Token(%s, \"%s\")\n", tokenType, currentToken);
 	}
 
 	return 0;
