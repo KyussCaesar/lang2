@@ -14,15 +14,17 @@ token grammar rules:
 
 #define typestruct typedef struct
 #define typeenum typedef enum
-#define New(x, a) Newx(((x)*)malloc(sizeof(x)), a)
+#define New(x, a) New##x((x*)malloc(sizeof(x)), a)
 
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
 #include<ctype.h>
 
+#include"token.h"
+
 /*
-Retrieves next token from the buffer, using delim as the function to determine delimitiing characters.
+Retrieves next token from the buffer, using delim as the function to determine delimiting characters.
 */
 char* getToken(char * buffer, int *index, int (*delim)(int))
 {
@@ -68,6 +70,11 @@ int main(int argc, char ** argv)
 {
 	/* reads from stdin */
 	char * buffer = (char*) malloc(1000);
+	if (buffer == 0) {
+		fprintf(stderr, "hey; input buffer allocation failed. terminating...\n");
+		return 1;
+	}
+
 	int bufindex = 0;
 
 	int c;
@@ -82,6 +89,8 @@ int main(int argc, char ** argv)
 	char * currentToken;
 	char * tokenType;
 	bufindex = 0;
+
+	TokenArray* tokens = New(TokenArray, 0);
 
 	while(buffer[bufindex] != EOF) 
 	{
@@ -132,7 +141,7 @@ int main(int argc, char ** argv)
 			tokenType = "r paren";
 		}
 
-		// BRACES
+		// LEFT BRACE
 		else if (buffer[bufindex] == '{')
 		{
 			bufindex++;
@@ -146,6 +155,22 @@ int main(int argc, char ** argv)
 			bufindex++;
 			currentToken = "}";
 			tokenType = "r brace";
+		}
+
+		// LEFT SQUARE BRACE
+		else if (buffer[bufindex] == '[')
+		{
+			bufindex++;
+			currentToken = "[";
+			tokenType = "l sq. brace";
+		}
+
+		// RIGHT SQUARE BRACE
+		else if (buffer[bufindex] == ']')
+		{
+			bufindex++;
+			currentToken = "]";
+			tokenType = "r sq. brace";
 		}
 
 		// ASSIGNMENT, EQUALITY
@@ -165,12 +190,36 @@ int main(int argc, char ** argv)
 			}
 		}
 
+		// COLON
+		else if (buffer[bufindex] == ':')
+		{
+			bufindex++;
+			currentToken = ":";
+			tokenType = "colon";
+		}
+
 		// SEMICOLON
 		else if (buffer[bufindex] == ';')
 		{
 			bufindex++;
 			currentToken = ";";
 			tokenType = "semicolon";
+		}
+
+		// PERIOD
+		else if (buffer[bufindex] == '.')
+		{
+			bufindex++;
+			currentToken = ".";
+			tokenType = "period";
+		}
+
+		// COMMA
+		else if (buffer[bufindex] == ',')
+		{
+			bufindex++;
+			currentToken = ",";
+			tokenType = "comma";
 		}
 
 		// UNRECOGNISED TOKEN
@@ -180,8 +229,15 @@ int main(int argc, char ** argv)
 			bufindex++;
 			continue;
 		}
+		Token t = {bufindex, currentToken, tokenType};
+		Token* newToken = New(Token, t);
+		TokenArray_Add(tokens, newToken);
+	}
 
-		printf("Token(%s, \"%s\")\n", tokenType, currentToken);
+	puts("finished parsing tokens; here is what i saw\n");
+	for (int i = 0; i < tokens->len; ++i)
+	{
+		printf("%s", Token_Repr(tokens->tokens[i]));
 	}
 
 	return 0;
