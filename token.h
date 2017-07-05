@@ -1,6 +1,11 @@
+#ifndef TOKEN_H
+#define TOKEN_H
+
 /*
 This file contains the definitions of all the stuff related to tokens and token arrays.
 */
+
+#include"arrays.h"
 
 // token ============================================================================
 typedef struct {
@@ -61,48 +66,7 @@ int Token_isData(Token* t, char* data)
 }
 
 // token array ======================================================================
-typedef struct {
-	Token** tokens;		// the array
-	int len;			// number of tokens in the array
-	int cap;			// max size of the array
-} TokenArray;
 
-// creates a new token array
-TokenArray* NewTokenArray(TokenArray* ta, int cap)
-{
-	if (cap < 4) ta->cap = 4; // default init size to 4
-	else ta->cap = cap;
+CompleteArrayDefinition(TokenArray, Token, tokens);
 
-	ta->len = 0; 				// starts with no tokens in it.
-	ta->tokens = (Token**)malloc(sizeof(Token*) * ta->cap);
-
-	return ta;
-}
-
-// Doubles the size of the array like C++ std::vector
-void TokenArray_Extend(TokenArray* ta)
-{
-	Token** oldTokenArray = ta->tokens;
-	ta->tokens = (Token**)malloc(sizeof(Token*) * 2 * ta->cap);
-	ta->cap = 2*ta->cap;
-
-	// Copies old array to new array
-	for (int i = 0; i < ta->len; ++i) ta->tokens[i] = oldTokenArray[i];
-
-	free(oldTokenArray);
-}
-
-// Adds a token to a tokenarray.
-void TokenArray_Add(TokenArray* ta, Token* t)
-{
-	if (ta->len == ta->cap) TokenArray_Extend(ta);
-
-	ta->tokens[ta->len] = t;
-	ta->len += 1;
-}
-
-// deletes a token array. DOES NOT DELETE THE TOKENS.
-void TokenArray_Free(TokenArray* ta)
-{
-	free(ta);
-}
+#endif

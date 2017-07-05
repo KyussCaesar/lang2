@@ -12,15 +12,12 @@ token grammar rules:
 	string literal : quote followed by zero or more of any character, followed by quote
 */
 
-#define typestruct typedef struct
-#define typeenum typedef enum
-#define New(x, a) New##x((x*)malloc(sizeof(x)), a)
-
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
 #include<ctype.h>
 
+#include"helpers.h"
 #include"token.h"
 
 /*
@@ -306,27 +303,27 @@ double number(TokenArray* ta, int* tlindex)
 			}
 			else
 			{
-				index++:
+				index++;
 				whole = strappend(whole, ".");
 				whole = strappend(whole, ta->tokens[index]->data);
 			}
 		}
 
 		// deal with scientific notation
-		if (Token_isData(ta->tokens[index], "e")
+		if (Token_isData(ta->tokens[index], "e"))
 		{
 			index++;
 			char* exponential = strappend(0, "e");
 
-			if (Token_isType(ta->tokens[index], "plus" index++;
+			if (Token_isType(ta->tokens[index], "plus")) index++;
 
-			else if (Token_isType(ta->tokens[index], "minus")
+			else if (Token_isType(ta->tokens[index], "minus"))
 			{
 				exponential = strappend(exponential, "-");
 				index++;
 			}
 
-			if (Token_isType(ta->tokens[index], "digits")
+			if (Token_isType(ta->tokens[index], "digits"))
 			{
 				exponential = strappend(exponential, ta->tokens[index]->data);
 				index++;
@@ -343,7 +340,7 @@ double number(TokenArray* ta, int* tlindex)
 
 		double rval = atof(whole);
 		free(whole);
-		&tlindex = index;
+		*tlindex = index;
 		return rval;
 	}
 	else
