@@ -36,6 +36,30 @@ char* Token_Repr(Token* t)
 	return reprStr;
 }
 
+// compare data of two tokens
+int Token_Dcmp(Token* a, Token* b)
+{
+	return !strcmp(a->data, b->data);
+}
+
+// compare type of two tokens
+int Token_Tcmp(Token* a, Token* b)
+{
+	return !strcmp(a->type, b->type);
+}
+
+// check type of a token
+int Token_isType(Token* t, char* type)
+{
+	return !strcmp(t->type, type);
+}
+
+// check data of a token
+int Token_isData(Token* t, char* data)
+{
+	return !strcmp(t->data, data);
+}
+
 // token array ======================================================================
 typedef struct {
 	Token** tokens;		// the array

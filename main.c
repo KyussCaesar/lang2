@@ -109,11 +109,11 @@ int main(int argc, char ** argv)
 			tokenType = "identifier";
 		}
 
-		// NUMERIC LITERALS
+		// DIGITS
 		else if (isdigit(buffer[bufindex]))
 		{
 			currentToken = getToken(buffer, &bufindex, isdigit);
-			tokenType = "numeric literal";
+			tokenType = "digit";
 		}
 
 		// STRING LITERAL
@@ -190,6 +190,38 @@ int main(int argc, char ** argv)
 			}
 		}
 
+		// PLUS
+		else if (buffer[bufindex] == '+')
+		{
+			bufindex++;
+			currentToken = "+";
+			tokenType = "plus";
+		}
+
+		// MINUS
+		else if (buffer[bufindex] == '-')
+		{
+			bufindex++;
+			currentToken = "-";
+			tokenType = "minus";
+		}
+
+		// MULTIPLY
+		else if (buffer[bufindex] == '*')
+		{
+			bufindex++;
+			currentToken = "*";
+			tokenType = "mult";
+		}
+
+		// DIVIDE
+		else if (buffer[bufindex] == '/')
+		{
+			bufindex++;
+			currentToken = "/";
+			tokenType = "divide";
+		}
+
 		// COLON
 		else if (buffer[bufindex] == ':')
 		{
@@ -229,6 +261,7 @@ int main(int argc, char ** argv)
 			bufindex++;
 			continue;
 		}
+
 		Token t = {bufindex, currentToken, tokenType};
 		Token* newToken = New(Token, t);
 		TokenArray_Add(tokens, newToken);
@@ -240,5 +273,84 @@ int main(int argc, char ** argv)
 		printf("%s", Token_Repr(tokens->tokens[i]));
 	}
 
+	/*
+	grammar:
+
+	number : digits optionally followed by a . then more digits, optionally followed by the letter 'e' then {'+', '-', ''} then more digits.
+
+	function decl : 'func' then function name then parentheses, then parameter list, closing parentheses, brace, statements, closing brace
+
+	parameter list : variable decl optionally followed by comma and then more variable declarations
+
+	variable decl : typename followed by identifier, followed by semicolon. (ignoring declaration with assignment for now)
+	*/
+
 	return 0;
 }
+
+double number(TokenArray* ta, int* tlindex)
+{
+	int index = *tlindex;
+	// is the current token a digits token?
+	if (Token_isType(ta->tokens[index], "digits"))
+	{
+		char* whole = ta->tokens[index]->data;
+		index++;
+
+		// deal with floats
+		if (Token_isType(ta->tokens[index], "period"))
+		{
+			if (!Token_isType(ta->tokens[index+1], "digits"))
+			{
+				puts("invalid syntax: expected digits after period\n");
+			}
+			else
+			{
+				index++:
+				whole = strappend(whole, ".");
+				whole = strappend(whole, ta->tokens[index]->data);
+			}
+		}
+
+		// deal with scientific notation
+		if (Token_isData(ta->tokens[index], "e")
+		{
+			index++;
+			char* exponential = strappend(0, "e");
+
+			if (Token_isType(ta->tokens[index], "plus" index++;
+
+			else if (Token_isType(ta->tokens[index], "minus")
+			{
+				exponential = strappend(exponential, "-");
+				index++;
+			}
+
+			if (Token_isType(ta->tokens[index], "digits")
+			{
+				exponential = strappend(exponential, ta->tokens[index]->data);
+				index++;
+			}
+
+			else
+			{
+				puts("invalid syntax: expected +, - or digits after 'e'\n");
+			}
+
+			whole = strappend(whole, exponential);
+			free(exponential);
+		}
+
+		double rval = atof(whole);
+		free(whole);
+		&tlindex = index;
+		return rval;
+	}
+	else
+	{
+		puts("invalid syntax: expected digits\n");
+	}
+
+	return -1;
+}
+
