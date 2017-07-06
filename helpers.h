@@ -20,6 +20,12 @@ should expand to:
 // appends b to a; frees a
 /* The idea is that you call it like
 	thing = strappend(thing, thing2); */
+	/*
+	a = thing;
+	thing = strappend(thing, thing2);
+	// TODO
+	// a is now invalid pointer
+	*/
 char* strappend(char* a, char* b)
 {
 	if (!(a && b)) return 0;

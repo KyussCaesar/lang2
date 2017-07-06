@@ -53,6 +53,12 @@ int Token_Tcmp(Token* a, Token* b)
 	return !strcmp(a->type, b->type);
 }
 
+// compare two tokens (both data and type must match)
+int Token_cmp(Token* a, Token* b)
+{
+	return Token_Dcmp(a,b) && Token_Tcmp(a,b);
+}
+
 // check type of a token
 int Token_isType(Token* t, char* type)
 {

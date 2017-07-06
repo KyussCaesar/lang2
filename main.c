@@ -58,7 +58,8 @@ Delimiting function for string literals
 int endquote(int ch)
 {
 	static int previousChar;
-	if ((ch == 0x22) && (previousChar != 0x5C)) return 0;
+	if (ch == EOF) return 0;
+	if ((ch == '"') && (previousChar != '\')) return 0;
 	previousChar = ch;
 	return 1;
 }
@@ -273,21 +274,105 @@ int main(int argc, char ** argv)
 	/*
 	grammar:
 
-	number : digits optionally followed by a . then more digits, optionally followed by the letter 'e' then {'+', '-', ''} then more digits.
+	statement : number of tokens separated by semicolon
 
-	function decl : 'func' then function name then parentheses, then parameter list, closing parentheses, brace, statements, closing brace
-
-	parameter list : variable decl optionally followed by comma and then more variable declarations
+	statement:
+		variable declaration
+		type def
+		assignment
+		function call
 
 	variable decl : typename followed by identifier, followed by semicolon. (ignoring declaration with assignment for now)
+
+	assignment:
+		identifier '=' expression
+
+	expression:
+		function def
+		function call
+		numeric expression
+
+	function def: uses a "function literal"
+	identifier = func (params)->rtype: statement or statement block
+
+	number : digits optionally followed by a . then more digits, optionally followed by the letter 'e' then ('+', '-', '') then more digits.
+
+	params : variable decl optionally followed by comma and then more variable declarations
 	*/
 
 	return 0;
 }
 
+/* implements the number production
+returns 0 if not a number
+prints syntax errors if there were any
+returns 1 and sets numb argument to number if a number was found */
+
+int Number(TokenArray *ta, int index, double* numb)
+{
+	/*
+	number : digits then
+		optionally period with more digits
+		optionally 'e' then optionally '+' or '-' then digits
+
+	digits (period digits) (E (plus, minus) digits)
+	*/
+
+	int firstToken = index;
+
+	if (!Token_isType(ta->tokens[index], "digits") return 0;
+	// first token was not digits, return zero but no syntax error.
+	else index++;
+
+	// handle decimal point
+	if (Token_isType(ta->tokens[index], "period")
+	{
+		index++;
+		if (!Token_isType(ta->tokens[index], "digits"))
+		{
+			puts("invalid syntax: digits must follow a period.\n");
+			return 0;
+		}
+		else index++;
+	}
+
+	// handle scientific notation
+	if (Token_cmp(ta->tokens[index], { -1, "E", "identifier" }))
+	{
+		index++;
+		if (Token_isType(ta->tokens[index], "plus") ||
+			Token_isType(ta->tokens[index], "minus") ) index++;
+
+		if (!Token_isType(ta->tokens[index], "digits"))
+		{
+			puts("invalid syntax: no number after 'E' in numeric literal.\n");
+			return 0;
+		}
+		else index++;
+	}
+
+	/* the index variable now points to the last token in the number (exclusive)
+	hence, we can build the number by concatenating all the data strings. */
+
+	// init output buffer
+	char* number = (char*)malloc(1);
+	number[0] = 0;
+
+	// cat data strings
+	for (int i = firstToken; i < index; ++i) number = strappend(number, ta->tokens[i]->data);
+
+	*numb = atof(number);
+	
+	// free number (strappend makes calls to malloc)
+	free(number);
+
+	return 1;
+}
+
 double number(TokenArray* ta, int* tlindex)
 {
 	int index = *tlindex;
+
 	// is the current token a digits token?
 	if (Token_isType(ta->tokens[index], "digits"))
 	{
