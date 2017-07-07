@@ -59,8 +59,94 @@ int endquote(int ch)
 {
 	static int previousChar;
 	if (ch == EOF) return 0;
-	if ((ch == '"') && (previousChar != '\')) return 0;
+	if ((ch == 0x22) && (previousChar != 0x5C)) return 0;
+
 	previousChar = ch;
+	return 1;
+}
+
+/* implements the number production
+returns 0 if not a number
+prints syntax errors if there were any
+returns 1 and sets numb argument to number if a number was found */
+
+int incI(TokenArray* ta, int index)
+{
+	index++;
+	if (index = ta->len) return index-1;
+	return index;
+}
+
+int Number(TokenArray *ta, int* tlindex, double* numb)
+{
+	/*
+	number : digit then
+		optionally period with more digit
+		optionally 'e' then optionally '+' or '-' then digit
+
+	digit (period digit) (E (plus, minus) digit)
+	*/
+
+	int index = *tlindex;
+	int firstToken = index;
+
+	if (!Token_isType(ta->tokens[index], "digit")) return 0;
+	// first token was not digit, return zero but no syntax error.
+	else index++;
+
+	// handle decimal point
+	if (Token_isType(ta->tokens[index], "period"))
+	{
+		index++;
+		if (!Token_isType(ta->tokens[index], "digit"))
+		{
+			puts("[number] invalid syntax: digits must follow a period.\n");
+			return 0;
+		}
+		else index++;
+	}
+
+	// handle scientific notation
+	Token t = { -1, "e", "identifier" };
+	if (Token_cmp(ta->tokens[index], &t))
+	{
+		index++;
+		if (Token_isType(ta->tokens[index], "plus") ||
+			Token_isType(ta->tokens[index], "minus") ) index++;
+
+		if (!Token_isType(ta->tokens[index], "digit"))
+		{
+			puts("[number] invalid syntax: no number after 'e' in numeric literal.\n");
+			return 0;
+		}
+		else index++;
+	}
+
+	if (index > ta->len) index = ta->len; // special case at end of input
+
+	/* the index variable now points to the last token in the number (exclusive)
+	hence, we can build the number by concatenating all the data strings. */
+
+	if (numb)
+	{
+
+		// init output buffer
+		char* number = (char*)malloc(1);
+		number[0] = 0;
+
+		printf("firsttoken %i index %i\n", firstToken, index);
+		fflush(stdout);
+
+		// cat data strings
+		for (int i = firstToken; i < index; ++i) number = strappend(number, ta->tokens[i]->data);
+
+		*numb = atof(number);
+		*tlindex = index;
+
+		// free number (strappend makes calls to malloc)
+		free(number);
+	}
+
 	return 1;
 }
 
@@ -277,162 +363,140 @@ int main(int argc, char ** argv)
 	statement : number of tokens separated by semicolon
 
 	statement:
-		variable declaration
-		type def
-		assignment
-		function call
+		variable declaration ';'
+		type def ';'
+		expression ';'
 
-	variable decl : typename followed by identifier, followed by semicolon. (ignoring declaration with assignment for now)
+	variable decl : 
+		typename followed by identifier
+		typename then assignment
 
-	assignment:
-		identifier '=' expression
+	typedef:
+		'class' identifier '{' statements '}'
 
 	expression:
+		identifier
+		assignment
 		function def
 		function call
 		numeric expression
 
-	function def: uses a "function literal"
-	identifier = func (params)->rtype: statement or statement block
+	assignment:
+		identifier '=' expression
 
-	number : digits optionally followed by a . then more digits, optionally followed by the letter 'e' then ('+', '-', '') then more digits.
+	function def:
+		'func' '(' parameter declaration ')' '->' typename ':' '{' statements '}'
 
-	params : variable decl optionally followed by comma and then more variable declarations
+	parameter declaration:
+		variable declaration optionally followed by comma and then more variable declarations
+
+	function call:
+		identifier '(' parameter list ')'
+
+	parameter list:
+		expression optionally followed by comma and then more expressions
+
+	numeric expression:
+		summation of terms
+
+	term:
+		product/division of factors/divisors
+		factor
+		factor plus factor
+		factor minus factor
+
+	factor:
+		number
+		identifier
+		factor '^' factor
+		'(' numeric expression ')' 
+
+	number : digit optionally followed by a . then more digit, optionally followed by the letter 'e' then ('+', '-', '') then more digit.
 	*/
+
+	int parseIndex = 0;
+	double number = 0;
+
+	while (parseIndex < tokens->len)
+	{
+		if (Number(tokens, &parseIndex, &number)) printf("found number: %lf\n", number);
+		parseIndex++;
+	}
 
 	return 0;
 }
 
-/* implements the number production
-returns 0 if not a number
-prints syntax errors if there were any
-returns 1 and sets numb argument to number if a number was found */
+/*{
+ast nodes
+	describes what happens when node is executed
 
-int Number(TokenArray *ta, int index, double* numb)
+numeric expression:
+	summation of terms
+
+term:
+	optional minus
+
+plus:
+	execute left
+	execute right
+	return sum of results
+
+minus:
+	execute operand
+	return negation of result
+
+multiply:
+	execute left
+	execute right
+	return product of operands
+
+divide:
+	execute top
+	execute bottom
+	return top divided by bottom
+
+assignment:
+	execute right
+	set left to refer to right
+
+identifier:
+	in assignment context: change what this identifier points to
+	else: refers to something
+
+number:
+	return the value of the number
+	// note: numbers are literals and literals are copied
+}*/
+
+/*
+function that takes tokens from current index up to matching semicolon and tries to figure out 
+what production applies
+
+increment index while token is not semicolon
+*/
+
+/*
+ta : token array to search through
+index : index to start from
+*/
+int statementSeparator(TokenArray* ta, int index)
 {
-	/*
-	number : digits then
-		optionally period with more digits
-		optionally 'e' then optionally '+' or '-' then digits
-
-	digits (period digits) (E (plus, minus) digits)
-	*/
-
-	int firstToken = index;
-
-	if (!Token_isType(ta->tokens[index], "digits") return 0;
-	// first token was not digits, return zero but no syntax error.
-	else index++;
-
-	// handle decimal point
-	if (Token_isType(ta->tokens[index], "period")
+	while (!Token_isType(ta->tokens[index], "semicolon"))
 	{
 		index++;
-		if (!Token_isType(ta->tokens[index], "digits"))
+
+		if (Token_isType(ta->tokens[index], "l brace"))
 		{
-			puts("invalid syntax: digits must follow a period.\n");
-			return 0;
-		}
-		else index++;
-	}
-
-	// handle scientific notation
-	if (Token_cmp(ta->tokens[index], { -1, "E", "identifier" }))
-	{
-		index++;
-		if (Token_isType(ta->tokens[index], "plus") ||
-			Token_isType(ta->tokens[index], "minus") ) index++;
-
-		if (!Token_isType(ta->tokens[index], "digits"))
-		{
-			puts("invalid syntax: no number after 'E' in numeric literal.\n");
-			return 0;
-		}
-		else index++;
-	}
-
-	/* the index variable now points to the last token in the number (exclusive)
-	hence, we can build the number by concatenating all the data strings. */
-
-	// init output buffer
-	char* number = (char*)malloc(1);
-	number[0] = 0;
-
-	// cat data strings
-	for (int i = firstToken; i < index; ++i) number = strappend(number, ta->tokens[i]->data);
-
-	*numb = atof(number);
-	
-	// free number (strappend makes calls to malloc)
-	free(number);
-
-	return 1;
-}
-
-double number(TokenArray* ta, int* tlindex)
-{
-	int index = *tlindex;
-
-	// is the current token a digits token?
-	if (Token_isType(ta->tokens[index], "digits"))
-	{
-		char* whole = ta->tokens[index]->data;
-		index++;
-
-		// deal with floats
-		if (Token_isType(ta->tokens[index], "period"))
-		{
-			if (!Token_isType(ta->tokens[index+1], "digits"))
-			{
-				puts("invalid syntax: expected digits after period\n");
-			}
-			else
+			int braceCount = 1;
+			while (braceCount)
 			{
 				index++;
-				whole = strappend(whole, ".");
-				whole = strappend(whole, ta->tokens[index]->data);
+				if (Token_isType(ta->tokens[index], "l brace")) braceCount++;
+				if (Token_isType(ta->tokens[index], "r brace")) braceCount--;
 			}
 		}
-
-		// deal with scientific notation
-		if (Token_isData(ta->tokens[index], "e"))
-		{
-			index++;
-			char* exponential = strappend(0, "e");
-
-			if (Token_isType(ta->tokens[index], "plus")) index++;
-
-			else if (Token_isType(ta->tokens[index], "minus"))
-			{
-				exponential = strappend(exponential, "-");
-				index++;
-			}
-
-			if (Token_isType(ta->tokens[index], "digits"))
-			{
-				exponential = strappend(exponential, ta->tokens[index]->data);
-				index++;
-			}
-
-			else
-			{
-				puts("invalid syntax: expected +, - or digits after 'e'\n");
-			}
-
-			whole = strappend(whole, exponential);
-			free(exponential);
-		}
-
-		double rval = atof(whole);
-		free(whole);
-		*tlindex = index;
-		return rval;
-	}
-	else
-	{
-		puts("invalid syntax: expected digits\n");
 	}
 
-	return -1;
+	return index;
 }
 
