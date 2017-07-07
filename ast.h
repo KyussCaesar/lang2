@@ -102,4 +102,59 @@ AST_Node* NumericTerm(TokenArray* ta, int* tlindex);
 AST_Node* NumericFactor(TokenArray* ta, int* tlindex);
 AST_Node* Number(TokenArray* ta, int* tlindex);
 
+/*
+grammar:
+
+statement:
+	variable declaration ';'
+	type def ';'
+	expression ';'
+
+variable decl : 
+	typename followed by identifier
+	typename then assignment
+
+typedef:
+	'class' identifier '{' statements '}'
+
+expression:
+	identifier
+	assignment
+	function def
+	function call
+	numeric expression
+
+assignment:
+	identifier '=' expression
+
+function def:
+	'func' '(' parameter declaration ')' '->' typename ':' '{' statements '}'
+
+parameter declaration:
+	variable declaration optionally followed by comma and then more variable declarations
+
+function call:
+	identifier '(' parameter list ')'
+
+parameter list:
+	expression optionally followed by comma and then more expressions
+
+numeric expression:
+	summation of terms
+
+term:
+	product/division of factors/divisors
+	factor
+	factor plus factor
+	factor minus factor
+
+factor:
+	number
+	identifier
+	factor '^' factor
+	'(' numeric expression ')' 
+
+number : digit optionally followed by a . then more digit, optionally followed by the letter 'e' then ('+', '-', '') then more digit.
+*/
+
 #endif

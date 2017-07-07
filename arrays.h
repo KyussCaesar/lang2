@@ -83,13 +83,4 @@ void type##_Free(type* x)\
 	free(x);\
 }
 
-// does a complete array definition
-#define CompleteArrayDefinition(type, etype, array)\
-DefineArrayType(type, etype, array);\
-DefineArrayNew(type, etype, array);\
-DefineArrayExtend(type, etype, array);\
-DefineArrayAdd(type, etype, array);\
-DefineArrayRemove(type, etype, array);\
-DefineArrayFree(type, etype, array);
-
 #endif

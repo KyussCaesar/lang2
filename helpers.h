@@ -7,7 +7,7 @@ helpers for the interpreter
 
 #include"arrays.h"
 
-// generic new function
+// generic new macro
 // compatible types must have a matching function with the same signature.
 /* initialising a new object:
 	Object* o = New(Object, arg);
@@ -15,17 +15,12 @@ should expand to:
 	Object* o = NewObject(mallocstuff, arg);
 */
 #define New(x, a) New##x((x*)malloc(sizeof(x)), a)
+
 // char str stuff ===============================================================
 
 // appends b to a; frees a
 /* The idea is that you call it like
-	thing = strappend(thing, thing2); */
-	/*
-	a = thing;
-	thing = strappend(thing, thing2);
-	// TODO
-	// a is now invalid pointer
-	*/
+thing = strappend(thing, thing2); */
 char* strappend(char* a, char* b)
 {
 	if (!(a && b)) return 0;
@@ -52,8 +47,20 @@ char* strappend(char* a, char* b)
 	return cat;
 }
 
+/* a = thing;
+thing = strappend(thing, thing2);
+TODO a is now invalid pointer */
+
 // KwArray ============================================================
 
-CompleteArrayDefinition(KwArray, char, kw);
+// Defines an array type for holding a list of keywords.
+/* the idea is that the lexer will eventually use this to
+generate apropriate keyword tokens. currently unused. */
+DefineArrayType(KwArray, char, kw);
+DefineArrayNew(KwArray, char, kw);
+DefineArrayExtend(KwArray, char, kw);
+DefineArrayAdd(KwArray, char, kw);
+DefineArrayRemove(KwArray, char, kw);
+DefineArrayFree(KwArray, char, kw);
 
 #endif

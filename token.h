@@ -12,7 +12,8 @@ typedef struct {
 	int pos;	// Position of token in buffer.
 	char* data;	// token data
 	char* type;	// token type
-} Token;
+}
+Token;
 
 // creates a token
 Token* NewToken(Token* t, Token T)
@@ -73,6 +74,11 @@ int Token_isData(Token* t, char* data)
 
 // token array ======================================================================
 
-CompleteArrayDefinition(TokenArray, Token, tokens);
+DefineArrayType(TokenArray, Token, tokens);
+DefineArrayNew(TokenArray, Token, tokens);
+DefineArrayExtend(TokenArray, Token, tokens);
+DefineArrayAdd(TokenArray, Token, tokens);
+DefineArrayRemove(TokenArray, Token, tokens);
+DefineArrayFree(TokenArray, Token, tokens);
 
 #endif
