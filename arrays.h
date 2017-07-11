@@ -19,6 +19,23 @@ typedef struct {
 // array expansion is done like std::vector: doubles size each time
 */
 
+// function declarations
+
+#define DeclareArrayNew(type, etype, array)\
+type* New##type(type* x, int cap)
+
+#define DeclareArrayExtend(type, etype, array) \
+void type##_Extend(type* x)
+
+#define DeclareArrayAdd(type, etype, array)\
+void type##_Add(type* x, etype* a)
+
+#define DeclareArrayRemove(type, etype, array)\
+void type##_Remove(type* x, int index)
+
+#define DeclareArrayFree(type, etype, array)\
+void type##_Free(type* x)
+
 // These macros expand to function definitions =========================
 
 // defines a new array type
@@ -82,5 +99,4 @@ void type##_Free(type* x)\
 	free(x->array);\
 	free(x);\
 }
-
 #endif

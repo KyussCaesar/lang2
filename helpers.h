@@ -5,7 +5,12 @@
 helpers for the interpreter
 */
 
+#include<stdlib.h>
+#include<stdio.h>
+#include<string.h>
+
 #include"arrays.h"
+#include"token.h"
 
 // generic new macro
 // compatible types must have a matching function with the same signature.
@@ -21,35 +26,12 @@ should expand to:
 // appends b to a; frees a
 /* The idea is that you call it like
 thing = strappend(thing, thing2); */
-char* strappend(char* a, char* b)
-{
-	if (!(a && b)) return 0;
-
-	char* cat = (char*)malloc(strlen(a) + strlen(b) + 1);
-
-	int i = 0;
-	while(a[i] != 0) 
-	{
-		cat[i] = a[i];
-		i++;
-	}
-
-	int j = 0;
-	while(b[j] != 0)
-	{
-		cat[i] = b[j];
-		j++;
-		i++;
-	}
-
-	cat[i] = 0;
-	free(a);
-	return cat;
-}
+char* strappend(char* a, char* b);
 
 /* a = thing;
 thing = strappend(thing, thing2);
-TODO a is now invalid pointer */
+TODO calling strappend on something invalidates pointers that used to point to the old thing
+*/
 
 // KwArray ============================================================
 
@@ -57,10 +39,19 @@ TODO a is now invalid pointer */
 /* the idea is that the lexer will eventually use this to
 generate apropriate keyword tokens. currently unused. */
 DefineArrayType(KwArray, char, kw);
-DefineArrayNew(KwArray, char, kw);
-DefineArrayExtend(KwArray, char, kw);
-DefineArrayAdd(KwArray, char, kw);
-DefineArrayRemove(KwArray, char, kw);
-DefineArrayFree(KwArray, char, kw);
+DeclareArrayNew(KwArray, char, kw);
+DeclareArrayExtend(KwArray, char, kw);
+DeclareArrayAdd(KwArray, char, kw);
+DeclareArrayRemove(KwArray, char, kw);
+DeclareArrayFree(KwArray, char, kw);
+
+// statement separator =======================================================
+/*
+returns index of token after the end of a statement
+
+ta : token array to search through
+index : index to start from
+*/
+int statementSeparator(TokenArray* ta, int index);
 
 #endif

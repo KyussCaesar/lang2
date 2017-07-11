@@ -1,6 +1,12 @@
 #ifndef AST_H
 #define AST_H
 
+#include<stdlib.h>
+#include<stdio.h>
+
+#include"helpers.h"
+#include"token.h"
+
 /* stuff concerning the ASTs */
 
 /*
@@ -13,14 +19,19 @@ variables in the program will be pointers to a tree
 // AST node types
 typedef enum {
 	None,
-	Assignment,
-	Number,
-	Plus,
-	Minus,
-	Multiply,
-	Divide
+	NumberNode,
+	PlusNode,
+	MinusNode,
+	MultiplyNode,
+	DivideNode,
+	IdentifierNode,
+	AssignmentNode,
+	UnaryMinus
 }
 AST_Type;
+
+// converts type to string for printing
+char* AST_TypeRepr(AST_Type t);
 
 /* 
 name: basic node
@@ -79,13 +90,45 @@ typedef struct {
 }
 AST_Assignment;
 
+/*
+name: unary minus
+description: unary minus
+execution: unary minus
+*/
+typedef struct {
+	AST_Type type;
+	AST_Node* negate;
+}
+AST_UnaryMinus;
+
+// AST Runtime Functions ============================================================
+
 // defines execution of all ast node types
 AST_Node* execute(AST_Node* root);
 
-/* BUILDING THE AST */
+// frees an ast
+/* this function is called when building an ast has failed */
+void freeast(AST_Node* n);
+
+// does runtime type checking and execution of binary op nodes (+-*/)
+AST_Node* BinOpCheck(AST_Node* root);
+
+// Building ASTs from the input tokens =============================================
+
 /*
-All of these functions return 0 if application of the rule was unsuccessful
-otherwise, they return an AST for executing the rule
+These functions try to use a rule in the grammar to build an ast.
+
+The grammar is written below these function delcarations
+
+if building the ast is successful;
+	they will update the tlindex parameter
+	and return a pointer to an ast for executing the rule.
+
+if rule failed without error
+	returns zero; and does not affect the tlindex parameter
+
+if rule failed with error
+	returns zero and sets tlindex to -1
 */
 AST_Node* Statement(TokenArray* ta, int* tlindex);
 AST_Node* TypeDefinition(TokenArray* ta, int* tlindex);
@@ -101,6 +144,9 @@ AST_Node* NumericExpression(TokenArray* ta, int* tlindex);
 AST_Node* NumericTerm(TokenArray* ta, int* tlindex);
 AST_Node* NumericFactor(TokenArray* ta, int* tlindex);
 AST_Node* Number(TokenArray* ta, int* tlindex);
+
+// returns a char* that represents this ast
+void AST_FPrint(FILE* fp, AST_Node* tree);
 
 /*
 grammar:

@@ -19,6 +19,7 @@ token grammar rules:
 
 #include"helpers.h"
 #include"token.h"
+#include"ast.h"
 
 /*
 Retrieves next token from the buffer, using delim as the function to determine delimiting characters.
@@ -64,6 +65,7 @@ int endquote(int ch)
 	previousChar = ch;
 	return 1;
 }
+
 int main(int argc, char ** argv)
 {
 	/* reads from stdin */
@@ -265,52 +267,34 @@ int main(int argc, char ** argv)
 		TokenArray_Add(tokens, newToken);
 	}
 
-	puts("finished parsing tokens; here is what i saw\n");
+	puts("\ntokens:");
 	for (int i = 0; i < tokens->len; ++i)
 	{
 		printf("%s", Token_Repr(tokens->tokens[i]));
 	}
+
+	puts("\noutput:");
 	int parseIndex = 0;
-	double number = 0;
-
-	while (parseIndex < tokens->len)
+	AST_Number* result = 0;
+	while(parseIndex < tokens->len)
 	{
-		if (Number(tokens, &parseIndex, &number)) printf("found number: %lf\n", number);
-		parseIndex++;
-	}
-
-	return 0;
-}
-
-/*
-function that takes tokens from current index up to matching semicolon and tries to figure out 
-what production applies
-
-increment index while token is not semicolon
-*/
-
-/*
-ta : token array to search through
-index : index to start from
-*/
-int statementSeparator(TokenArray* ta, int index)
-{
-	while (!Token_isType(ta->tokens[index], "semicolon"))
-	{
-		index++;
-
-		if (Token_isType(ta->tokens[index], "l brace"))
+		AST_Node* statement = Statement(tokens, &parseIndex);
+		if (parseIndex == -1) return 1;
+		if (statement) 
 		{
-			int braceCount = 1;
-			while (braceCount)
+			puts("executing...");
+			AST_FPrint(stdout, statement);
+			result = (AST_Number*)execute(statement);
+			if (result)
 			{
-				index++;
-				if (Token_isType(ta->tokens[index], "l brace")) braceCount++;
-				if (Token_isType(ta->tokens[index], "r brace")) braceCount--;
+				if (result->type == NumberNode) printf("%lf\n", result->number);
 			}
+			freeast((AST_Node*)result);
 		}
+		freeast(statement);
 	}
 
-	return index;
+	puts("finished, exiting");
+	return 0;
 }
 
