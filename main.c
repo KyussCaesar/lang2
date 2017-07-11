@@ -267,10 +267,13 @@ int main(int argc, char ** argv)
 		TokenArray_Add(tokens, newToken);
 	}
 
-	puts("\ntokens:");
-	for (int i = 0; i < tokens->len; ++i)
+	if (DEBUG_BUILD)
 	{
-		printf("%s", Token_Repr(tokens->tokens[i]));
+		puts("\ntokens:");
+		for (int i = 0; i < tokens->len; ++i)
+		{
+			printf("%s", Token_Repr(tokens->tokens[i]));
+		}
 	}
 
 	puts("\noutput:");
@@ -282,16 +285,16 @@ int main(int argc, char ** argv)
 		if (parseIndex == -1) return 1;
 		if (statement) 
 		{
-			puts("executing...");
-			AST_FPrint(stdout, statement);
+			if (DEBUG_BUILD) AST_FPrint(stdout, statement);
 			result = (AST_Number*)execute(statement);
 			if (result)
 			{
 				if (result->type == NumberNode) printf("%lf\n", result->number);
 			}
+
 			freeast((AST_Node*)result);
+			freeast(statement);
 		}
-		freeast(statement);
 	}
 
 	puts("finished, exiting");

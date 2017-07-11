@@ -46,9 +46,11 @@ AST_Node* execute(AST_Node* root)
 
 	if (root->type == NumberNode)
 	{
-		AST_Number* numb = (AST_Number*)root;
+		AST_Number* numb = (AST_Number*) malloc(sizeof(AST_Number));
+		numb->type = NumberNode;
+		numb->number = (*(AST_Number*)root).number;
 		d_printf("[execute] type '%s' and value %lf\n", AST_TypeRepr(numb->type), numb->number);
-		return root;
+		return (AST_Node*)numb;
 	}
 
 	if (root->type == IdentifierNode)
@@ -157,7 +159,7 @@ void freeast(AST_Node* n)
 		return;
 	}
 
-	printf("[freeast] i don't know how to free this; (%i) '%s'\n", n->type, AST_TypeRepr(n->type));
+	printf("[freeast] i don't know how to free this; (%i %x) '%s'\n", n->type, n->type, AST_TypeRepr(n->type));
 	return;
 }
 
