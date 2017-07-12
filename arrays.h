@@ -3,6 +3,9 @@
 
 /* defines stuff for my custom arrays */
 
+/* I know this is preprocessor abuse, but I think for my purpose it 
+simplifies things, at least for now */
+
 /* custom array types look like this
 
 typedef struct {
@@ -19,7 +22,7 @@ typedef struct {
 // array expansion is done like std::vector: doubles size each time
 */
 
-// function declarations
+// These macro expand to function *declarations* ===================================
 
 #define DeclareArrayNew(type, etype, array)\
 type* New##type(type* x, int cap)
@@ -36,7 +39,7 @@ void type##_Remove(type* x, int index)
 #define DeclareArrayFree(type, etype, array)\
 void type##_Free(type* x)
 
-// These macros expand to function definitions =========================
+// These macros expand to function definitions =====================================
 
 // defines a new array type
 #define DefineArrayType(type, etype, array)\

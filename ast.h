@@ -12,9 +12,14 @@
 /*
 each node is treated like a tree in and of itself
 variables in the program will be pointers to a tree 
+
+functions:
+	define a new scope
+	set parameters to point to whatever was passed
+	execute tree
 */
 
-/* AST NODE DEFINITIONS */
+// AST Node Definitions ========================================================
 
 // AST node types
 typedef enum {
@@ -31,6 +36,7 @@ typedef enum {
 AST_Type;
 
 // converts type to string for printing
+// result does not need to be freed.
 char* AST_TypeRepr(AST_Type t);
 
 /* 
@@ -78,6 +84,15 @@ typedef struct {
 }
 AST_Identifier;
 
+/* commented out until I have finished the symbol table
+typedef struct {
+	AST_Type type;
+	AST_Identifier* id; // variable that is being declared
+	char* rt_type;
+}
+AST_VariableDeclaration;
+*/
+
 /*
 name: assignment node
 description: node for assignment
@@ -120,8 +135,9 @@ These functions try to use a rule in the grammar to build an ast.
 
 The grammar is written below these function delcarations
 
+These functions conform to the following interface:
 if building the ast is successful;
-	they will update the tlindex parameter
+	update the tlindex parameter
 	and return a pointer to an ast for executing the rule.
 
 if rule failed without error
@@ -130,6 +146,7 @@ if rule failed without error
 if rule failed with error
 	returns zero and sets tlindex to -1
 */
+
 AST_Node* Statement(TokenArray* ta, int* tlindex);
 AST_Node* TypeDefinition(TokenArray* ta, int* tlindex);
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex);
@@ -145,7 +162,7 @@ AST_Node* NumericTerm(TokenArray* ta, int* tlindex);
 AST_Node* NumericFactor(TokenArray* ta, int* tlindex);
 AST_Node* Number(TokenArray* ta, int* tlindex);
 
-// returns a char* that represents this ast
+// prints the tree to file fp
 void AST_FPrint(FILE* fp, AST_Node* tree);
 
 /*

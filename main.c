@@ -1,17 +1,3 @@
-/*
-baby steps: write program that reads file and outputs what tokens it found
-
-current tokens:
-	identifiers
-	base-10 literals
-	string literals
-
-token grammar rules:
-	identifier : letter followed by zero or more letters or numbers
-	base-10 literal : numeric character followed by zero or more numeric characters
-	string literal : quote followed by zero or more of any character, followed by quote
-*/
-
 #include<stdlib.h>
 #include<stdio.h>
 #include<string.h>
@@ -92,6 +78,7 @@ int main(int argc, char ** argv)
 
 	TokenArray* tokens = New(TokenArray, 0);
 
+	// Lexer code
 	while(buffer[bufindex] != EOF) 
 	{
 

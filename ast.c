@@ -2,7 +2,9 @@
 
 #define d_printf(...) if(DEBUG_BUILD) printf(__VA_ARGS__);
 
-// TODO redo code so that IncrementWithBoundsCheck is not necessary
+/*
+TODO redo code so that IncrementWithBoundsCheck is not necessary
+*/
 // this is kindof inelegant but I can't be bothered changing everything right now
 #define IncrementWithBoundsCheck(i)\
 	++i;\
@@ -42,7 +44,9 @@ AST_Node* execute(AST_Node* root)
 	}
 
 	if (root->type == None) return 0; 
-// TODO: (execute) returns 0 on none: not sure if this is actually what I want to do 
+/*
+TODO: (execute) returns 0 on none: not sure if this is actually what I want to do
+*/
 
 	if (root->type == NumberNode)
 	{
@@ -63,7 +67,10 @@ AST_Node* execute(AST_Node* root)
 	if (root->type == AssignmentNode)
 	{
 		AST_Assignment* node = (AST_Assignment*)root;
-// TODO reference counting for trees.
+/*
+TODO reference counting for trees.
+*/
+
 		/* when you do reference counting, then you will have to update the tree that 
 		the left side used to point to, here. */
 
@@ -267,8 +274,17 @@ AST_Node* TypeDefinition(TokenArray* ta, int* tlindex)
 
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex)
 {
-	/* variable declaration : typename then identifier
-	which basically means "two identifiers" */
+	AST_Node* vdecl = 0;
+
+	/* variable decl : 
+		typename followed by identifier
+		typename then assignment
+	*/
+
+	// next two tokens should be "identifier" type (execute will check that the type exists)
+
+
+
 	return 0;
 }
 

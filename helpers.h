@@ -46,6 +46,7 @@ DeclareArrayRemove(KwArray, char, kw);
 DeclareArrayFree(KwArray, char, kw);
 
 // statement separator =======================================================
+
 /*
 returns index of token after the end of a statement
 
