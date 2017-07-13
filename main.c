@@ -6,6 +6,20 @@
 #include"helpers.h"
 #include"token.h"
 #include"ast.h"
+#include"symboltable.h"
+
+/* TODOS (no particular order):
+Big:
+TODO Replace "char*" types with enumerated types (e.g token types)
+TODO Symbol-table checking will be done at "compile" time (when building the AST);
+TODO Reference counting for trees.
+TODO Move parsing code to a dedicated file
+
+Small:
+TODO Function that prints the current statement (while building AST; for errors)
+*/
+
+SymbolTable* global_symbol_table = 0;
 
 /*
 Retrieves next token from the buffer, using delim as the function to determine delimiting characters.
@@ -262,6 +276,8 @@ int main(int argc, char ** argv)
 			printf("%s", Token_Repr(tokens->tokens[i]));
 		}
 	}
+
+	global_symbol_table = New(SymbolTable, 0);
 
 	puts("\noutput:");
 	int parseIndex = 0;

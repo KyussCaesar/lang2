@@ -1,10 +1,8 @@
 #include"ast.h"
+#include"symboltable.h"
 
 #define d_printf(...) if(DEBUG_BUILD) printf(__VA_ARGS__);
 
-/*
-TODO redo code so that IncrementWithBoundsCheck is not necessary
-*/
 // this is kindof inelegant but I can't be bothered changing everything right now
 #define IncrementWithBoundsCheck(i)\
 	++i;\
@@ -35,6 +33,8 @@ char* AST_TypeRepr(AST_Type t)
 
 }
 
+extern SymbolTable* global_symbol_table;
+
 AST_Node* execute(AST_Node* root)
 {
 	if (!root)
@@ -44,9 +44,6 @@ AST_Node* execute(AST_Node* root)
 	}
 
 	if (root->type == None) return 0; 
-/*
-TODO: (execute) returns 0 on none: not sure if this is actually what I want to do
-*/
 
 	if (root->type == NumberNode)
 	{
@@ -55,6 +52,16 @@ TODO: (execute) returns 0 on none: not sure if this is actually what I want to d
 		numb->number = (*(AST_Number*)root).number;
 		d_printf("[execute] type '%s' and value %lf\n", AST_TypeRepr(numb->type), numb->number);
 		return (AST_Node*)numb;
+	}
+
+	if (
+		(root->type == PlusNode) ||
+		(root->type == MinusNode) ||
+		(root->type == MultiplyNode) ||
+		(root->type == DivideNode) ) 
+	{
+		d_printf("[execute] executing binop '%s'\n", AST_TypeRepr(root->type));
+		return BinOpCheck(root);
 	}
 
 	if (root->type == IdentifierNode)
@@ -67,9 +74,6 @@ TODO: (execute) returns 0 on none: not sure if this is actually what I want to d
 	if (root->type == AssignmentNode)
 	{
 		AST_Assignment* node = (AST_Assignment*)root;
-/*
-TODO reference counting for trees.
-*/
 
 		/* when you do reference counting, then you will have to update the tree that 
 		the left side used to point to, here. */
@@ -82,20 +86,21 @@ TODO reference counting for trees.
 			return 0;
 		}
 
-		node->left->tree = node->right;
+		// perform lookup of variable name in symbol table.
+		SymbolTableEntry* ste = SymbolTable_Find(global_symbol_table, node->left);
+		if (ste)
+		{
+			if (!strcmp(ste->id->rt_type, "variable")) ;
+		}
+
+		else
+		{
+			printf("[execute] hey, i haven't heard of '%s' before\n", node->left);
+			return 0;
+		}
 
 		// assignment expressions return a reference to the left side
 		return (AST_Node*)(node->left);
-	}
-
-	if (
-		(root->type == PlusNode) ||
-		(root->type == MinusNode) ||
-		(root->type == MultiplyNode) ||
-		(root->type == DivideNode) ) 
-	{
-		d_printf("[execute] executing binop '%s'\n", AST_TypeRepr(root->type));
-		return BinOpCheck(root);
 	}
 
 	if (root->type == UnaryMinus)
@@ -114,6 +119,30 @@ TODO reference counting for trees.
 		{
 			printf("[execute] hey, you have to do unary minus on either a number or something that evaluates to a number; (you tried to do it on a %s)\n", AST_TypeRepr(minus->type));
 			return 0;
+		}
+	}
+
+	if (root->type == VariableDeclarationNode)
+	{
+		AST_VariableDeclaration* vdecl = (AST_VariableDeclaration*)root;
+
+		// check if variable with specified name is already in the symbol table.
+		if (SymbolTable_Find(global_symbol_table, vdecl->id->name))
+		{
+			printf("[execute] hey, variable '%s' has already been declared\n", vdecl->id->name);
+			freeast((AST_Node*) vdecl);
+			return 0;
+		}
+
+		else
+		{
+			// create a new symbol table entry and add to symbol table
+			SymbolTableEntry* newsymbol = (SymbolTableEntry*) malloc(sizeof(SymbolTableEntry));
+			newsymbol->id = vdecl->id;
+			newsymbol->type = "identifier";
+			SymbolTable_Add(global_symbol_table, newsymbol);
+			if (vdecl->init) execute(vdecl->init);
+			return 1;
 		}
 	}
 
@@ -186,16 +215,16 @@ AST_Node* BinOpCheck(AST_Node* root)
 		return 0;
 	}
 
-	if (!(op->left->type == NumberNode) &&
-		(op->right->type == NumberNode) )
-	{
-		puts("[binop] left or right side of the binop was not a number\n");
-		return 0;
-	}
-	
 	AST_Number* left = (AST_Number*)execute(op->left);
 	AST_Number* right = (AST_Number*)execute(op->right);
 
+	if (!(left->type == NumberNode) &&
+		(right->type == NumberNode) )
+	{
+		printf("[binop] left or right side of '%s' binop was not a number\n", AST_TypeRepr(op->type));
+		return 0;
+	}
+	
 	AST_Number* result = (AST_Number*) malloc(sizeof(AST_Number));
 
 	result->type = NumberNode;
@@ -274,18 +303,58 @@ AST_Node* TypeDefinition(TokenArray* ta, int* tlindex)
 
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex)
 {
-	AST_Node* vdecl = 0;
+	AST_VariableDeclaration* vdecl = 0;
 
 	/* variable decl : 
 		typename followed by identifier
 		typename then assignment
 	*/
 
-	// next two tokens should be "identifier" type (execute will check that the type exists)
+	/*
+	if first token is not an identifier, return 0;
+	if second token is not an identifier, return 0;
+	else, construct the two identifier nodes and the variable declaration node;
+	if next token is assignment token, 
+	*/
 
+	int index = *tlindex;
 
+	// check that next two tokens are identifiers
+	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
+	IncrementWithBoundsCheck(index);
+	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
 
-	return 0;
+	// initialise vdecl node
+	vdecl = (AST_VariableDeclaration*) malloc(sizeof(AST_VariableDeclaration));
+	vdecl->type = VariableDeclarationNode;
+	vdecl->id = (AST_Identifier*) malloc(sizeof(AST_Identifier));
+	vdecl->rt_type = ta->tokens[index-1]->data;
+	vdecl->init = 0;
+
+	// initialise identifier node
+	vdecl->id->type = IdentifierNode;
+	vdecl->id->tree = 0;
+	vdecl->id->name = ta->tokens[index]->data;
+
+	// check if there is assignment too
+	IncrementWithBoundsCheck(index);
+	if (Token_isType(ta->tokens[index], "assignment"))
+	{
+		*tlindex = index - 1;
+		vdecl->init = Assignment(ta, tlindex);
+		if (*tlindex == -1) return 0;
+		if (vdecl->init == 0)
+		{
+			// "this should never happen" since it's an error for Assignment too
+			puts("[variabledeclaration] hey, expected assignment after '='");
+			*tlindex == -1;
+			return 0;
+		}
+	}
+
+	else *tlindex = index;
+
+	return vdecl;
 }
 
 AST_Node* Expression(TokenArray* ta, int* tlindex)
@@ -320,13 +389,59 @@ AST_Node* Expression(TokenArray* ta, int* tlindex)
 
 AST_Node* Identifier(TokenArray* ta, int* tlindex)
 {
-	
+	AST_Identifier* identifier = 0;
+
+	/* identifiers are separated out by the lexer,
+	so there is no grammar to implement except "is it an identifier token?" */
+
+	if (Token_isType(ta->tokens[*tlindex], "identifier"))
+	{
+		identifier = (AST_Identifier*) malloc(sizeof(AST_Identifier));
+		identifier->type = IdentifierNode;
+		identifier->tree = 0;
+		identifier->name = ta->tokens[*tlindex]->data;
+		identifier->rt_type = 0;
+		*tlindex += 1;
+		return identifier;
+	}
+
 	return 0;
 }
 
 AST_Node* Assignment(TokenArray* ta, int* tlindex)
 {
-	return 0;
+	AST_Assignment* assign = 0;
+
+	/* assignment:
+		identifier '=' expression
+	*/
+
+	int index = *tlindex;
+
+	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
+	Token* idToken = ta->tokens[index];
+
+	IncrementWithBoundsCheck(index);
+	if (!Token_isType(ta->tokens[index], "assignment")) return 0;
+
+	// create new assignment node
+	assign = (AST_Assignment*) malloc(sizeof(AST_Assignment));
+	assign->type = AssignmentNode;
+	assign->left = idToken->data;
+
+	IncrementWithBoundsCheck(index);
+	*tlindex = index;
+	assign->right = Expression(ta, tlindex);
+	if (*tlindex == -1) return 0;
+	if (assign->right == 0)
+	{
+		puts("[assignment] hey, i expected an expression after the '=' sign");
+		*tlindex = -1;
+		freeast((AST_Node*)assign);
+		return 0;
+	}
+
+	return assign;
 }
 
 AST_Node* FunctionDefinition(TokenArray* ta, int* tlindex)
@@ -563,25 +678,22 @@ void AST_FPrint(FILE* fp, AST_Node* tree)
 	{
 		printIndent(fp, indentLevel);
 		fprintf(fp, "(null pointer)\n");
-		return;
 	}
 
-	if (tree->type == None)
+	else if (tree->type == None)
 	{
 		printIndent(fp, indentLevel);
 		fprintf(fp, "None\n");
-		return;
 	}
 
-	if (tree->type == NumberNode)
+	else if (tree->type == NumberNode)
 	{
 		AST_Number* number = (AST_Number*) tree;
 		printIndent(fp, indentLevel);
 		fprintf(fp, "num:%lf\n", number->number);
-		return;
 	}
 
-	if (
+	else if (
 		(tree->type == PlusNode) ||
 		(tree->type == MinusNode) ||
 		(tree->type == MultiplyNode) ||
@@ -600,10 +712,9 @@ void AST_FPrint(FILE* fp, AST_Node* tree)
 		AST_FPrint(fp, (AST_Node*)bop->left);
 		indentLevel--;
 
-		return;
 	}
 
-	if (tree->type == UnaryMinus)
+	else if (tree->type == UnaryMinus)
 	{
 		AST_UnaryMinus* um = (AST_UnaryMinus*) tree;
 
@@ -613,7 +724,11 @@ void AST_FPrint(FILE* fp, AST_Node* tree)
 
 		printIndent(fp, indentLevel);
 		fprintf(fp, "UnaryMinus\n");
+	}
 
-		return;
+	else
+	{
+		printIndent(fp, indentLevel);
+		fprintf(fp, "{Unknown}\n");
 	}
 }

@@ -6,15 +6,12 @@ DefineArrayAdd(SymbolTable, SymbolTableEntry, symbols);
 DefineArrayRemove(SymbolTable, SymbolTableEntry, symbols);
 DefineArrayFree(SymbolTable, SymbolTableEntry, symbols);
 
-AST_Identifier* SymbolTable_Find(SymbolTable* st, char* name)
+SymbolTableEntry* SymbolTable_Find(SymbolTable* st, char* name)
 {
-	#define ST_ENTRY st->symbols
 	for (int i = 0; i < st->len; ++i)
 	{
-		if (!strcmp(ST_ENTRY[i]->id->name, name)) return ST_ENTRY->id;
+		if (!strcmp(st->symbols[i]->id->name, name)) return st->symbols[i];
 	}
-	#undef STENTRY
-
 	return 0;
 }
 

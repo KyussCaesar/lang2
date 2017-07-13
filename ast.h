@@ -31,7 +31,8 @@ typedef enum {
 	DivideNode,
 	IdentifierNode,
 	AssignmentNode,
-	UnaryMinus
+	UnaryMinus,
+	VariableDeclarationNode
 }
 AST_Type;
 
@@ -69,6 +70,7 @@ typedef struct {
 	AST_Type type;
 	AST_Node* left;
 	AST_Node* right;
+	char* rt_type;
 }
 AST_BinOp;
 
@@ -81,17 +83,9 @@ typedef struct {
 	AST_Type type;
 	AST_Node* tree;
 	char* name;
-}
-AST_Identifier;
-
-/* commented out until I have finished the symbol table
-typedef struct {
-	AST_Type type;
-	AST_Identifier* id; // variable that is being declared
 	char* rt_type;
 }
-AST_VariableDeclaration;
-*/
+AST_Identifier;
 
 /*
 name: assignment node
@@ -100,10 +94,23 @@ execution: changes left to point to the same tree as right, returns left.
 */
 typedef struct {
 	AST_Type type;
-	AST_Identifier* left;
+	char* left; // variable name
 	AST_Node* right;
 }
 AST_Assignment;
+
+/*
+name : variable declaration node
+description: node to represent variable declaration
+execution: add identifier to the symbol table
+*/
+typedef struct {
+	AST_Type type;
+	AST_Identifier* id;      // variable that is being declared
+	char* rt_type; // type of the variable that is being declared
+	AST_Assignment* init;
+}
+AST_VariableDeclaration;
 
 /*
 name: unary minus
@@ -136,6 +143,7 @@ These functions try to use a rule in the grammar to build an ast.
 The grammar is written below these function delcarations
 
 These functions conform to the following interface:
+
 if building the ast is successful;
 	update the tlindex parameter
 	and return a pointer to an ast for executing the rule.
@@ -176,6 +184,12 @@ statement:
 variable decl : 
 	typename followed by identifier
 	typename then assignment
+
+Number forty;
+
+'Number' 'forty' ';'
+
+
 
 typedef:
 	'class' identifier '{' statements '}'
