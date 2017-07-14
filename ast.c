@@ -17,16 +17,16 @@ char* AST_TypeRepr(AST_Type t)
 {
 	switch (t)
 	{
-		case None:            return "None";
-		case AssignmentNode:  return "AssignmentNode";
-		case IdentifierNode:  return "IdentifierNode";
-		case NumberNode:      return "NumberNode";
-		case PlusNode:        return "PlusNode";
-		case MinusNode:       return "MinusNode";
-		case MultiplyNode:    return "MultiplyNode";
-		case DivideNode:      return "DivideNode";
-		case UnaryMinus:      return "UnaryMinus";
-		default:              return "{Unknown}";
+		case None:                   return "None";
+		case AssignmentNode:         return "AssignmentNode";
+		case VariableReferenceNode:  return "VariableReferenceNode";
+		case NumberNode:             return "NumberNode";
+		case PlusNode:               return "PlusNode";
+		case MinusNode:              return "MinusNode";
+		case MultiplyNode:           return "MultiplyNode";
+		case DivideNode:             return "DivideNode";
+		case UnaryMinus:             return "UnaryMinus";
+		default:                     return "{Unknown}";
 	}
 
 	return 0; // should never execute
@@ -43,14 +43,15 @@ AST_Node* execute(AST_Node* root)
 		return 0;
 	}
 
-	if (root->type == None) return 0; 
+	if (root->type == None) return 0; // "no-op"
 
 	if (root->type == NumberNode)
 	{
 		AST_Number* numb = (AST_Number*) malloc(sizeof(AST_Number));
 		numb->type = NumberNode;
 		numb->number = (*(AST_Number*)root).number;
-		d_printf("[execute] type '%s' and value %lf\n", AST_TypeRepr(numb->type), numb->number);
+		numb->rt_type = (SymbolTableEntry_TypeName*) SymbolTable_Find(global_symbol_table, "Number");
+		d_printf("[execute] number with value %lf\n", numb->number);
 		return (AST_Node*)numb;
 	}
 
@@ -61,14 +62,28 @@ AST_Node* execute(AST_Node* root)
 		(root->type == DivideNode) ) 
 	{
 		d_printf("[execute] executing binop '%s'\n", AST_TypeRepr(root->type));
-		return BinOpCheck(root);
+
+		AST_BinOp* op = (AST_BinOp*)root;
+
+		AST_Number* left = (AST_Number*)execute(op->left);
+		AST_Number* right = (AST_Number*)execute(op->right);
+
+		AST_Number* result = (AST_Number*) malloc(sizeof(AST_Number));
+
+		result->type = NumberNode;
+
+		if      ( op->type ==   PlusNode   ) result->number = left->number + right->number;
+		else if ( op->type ==  MinusNode   ) result->number = left->number - right->number;
+		else if ( op->type == MultiplyNode ) result->number = left->number * right->number;
+		else if ( op->type ==  DivideNode  ) result->number = left->number / right->number;
+
+		return (AST_Node*) result;
 	}
 
-	if (root->type == IdentifierNode)
+	if (root->type == VariableReferenceNode)
 	{
-		AST_Identifier* id = (AST_Identifier*)root;
-		d_printf("[execute] executing identifier '%s'\n", id->name);
-		return execute(id->tree);
+		AST_Variable* var = (AST_Variable*)root;
+		return execute(var->variable->tree);
 	}
 
 	if (root->type == AssignmentNode)
@@ -78,72 +93,16 @@ AST_Node* execute(AST_Node* root)
 		/* when you do reference counting, then you will have to update the tree that 
 		the left side used to point to, here. */
 
-		// check that left and right are initialised properly
-		if (!node->left || !node->right)
-		{
-			if (!node->left) puts("[execute] left side of assignment was null\n");
-			if (!node->right) puts("[execute] right side of assignment was null\n");
-			return 0;
-		}
-
-		// perform lookup of variable name in symbol table.
-		SymbolTableEntry* ste = SymbolTable_Find(global_symbol_table, node->left);
-		if (ste)
-		{
-			if (!strcmp(ste->id->rt_type, "variable")) ;
-		}
-
-		else
-		{
-			printf("[execute] hey, i haven't heard of '%s' before\n", node->left);
-			return 0;
-		}
-
-		// assignment expressions return a reference to the left side
-		return (AST_Node*)(node->left);
+		node->left->tree = node->right;
 	}
 
 	if (root->type == UnaryMinus)
 	{
 		AST_UnaryMinus* um = (AST_UnaryMinus*) root;
-		AST_Node* minus = execute(um->negate);
-		// check that result of the above is a number node
-		if (minus->type == NumberNode)
-		{
-			AST_Number* minusnode = (AST_Number*) minus;
-			minusnode->number *= -1;
-			d_printf("[execute] type '%s'\n", AST_TypeRepr(minusnode->type));
-			return minus;
-		}
-		else
-		{
-			printf("[execute] hey, you have to do unary minus on either a number or something that evaluates to a number; (you tried to do it on a %s)\n", AST_TypeRepr(minus->type));
-			return 0;
-		}
-	}
+		AST_Number* minus = (AST_Number*)execute(um->negate);
+		minus->number *= -1;
 
-	if (root->type == VariableDeclarationNode)
-	{
-		AST_VariableDeclaration* vdecl = (AST_VariableDeclaration*)root;
-
-		// check if variable with specified name is already in the symbol table.
-		if (SymbolTable_Find(global_symbol_table, vdecl->id->name))
-		{
-			printf("[execute] hey, variable '%s' has already been declared\n", vdecl->id->name);
-			freeast((AST_Node*) vdecl);
-			return 0;
-		}
-
-		else
-		{
-			// create a new symbol table entry and add to symbol table
-			SymbolTableEntry* newsymbol = (SymbolTableEntry*) malloc(sizeof(SymbolTableEntry));
-			newsymbol->id = vdecl->id;
-			newsymbol->type = "identifier";
-			SymbolTable_Add(global_symbol_table, newsymbol);
-			if (vdecl->init) execute(vdecl->init);
-			return 1;
-		}
+		return (AST_Node*) minus;
 	}
 
 	return 0;
@@ -169,11 +128,12 @@ void freeast(AST_Node* n)
 		return;
 	}
 
-	if (n->type == IdentifierNode)
+	if (n->type == VariableReferenceNode)
 	{
-		AST_Identifier* id = (AST_Identifier*) n;
-		freeast(id->tree);
-		free(id->name);
+		AST_Variable* var = (AST_Variable*) n;
+		freeast(var->variable->tree);
+		free(var->variable->symbol);
+		free(var->variable);
 		free(n);
 		return;
 	}
@@ -197,44 +157,6 @@ void freeast(AST_Node* n)
 
 	printf("[freeast] i don't know how to free this; (%i %x) '%s'\n", n->type, n->type, AST_TypeRepr(n->type));
 	return;
-}
-
-AST_Node* BinOpCheck(AST_Node* root)
-{
-	if (!root) 
-	{
-		puts("[binop] binop node was null\n");
-		return 0;
-	}
-
-	AST_BinOp* op = (AST_BinOp*)root;
-
-	if ( !(op->left) || !(op->right) )
-	{
-		puts("[binop] one of the sides of the binop was not initialised\n");
-		return 0;
-	}
-
-	AST_Number* left = (AST_Number*)execute(op->left);
-	AST_Number* right = (AST_Number*)execute(op->right);
-
-	if (!(left->type == NumberNode) &&
-		(right->type == NumberNode) )
-	{
-		printf("[binop] left or right side of '%s' binop was not a number\n", AST_TypeRepr(op->type));
-		return 0;
-	}
-	
-	AST_Number* result = (AST_Number*) malloc(sizeof(AST_Number));
-
-	result->type = NumberNode;
-
-	if (op->type == PlusNode)     result->number = left->number + right->number;
-	if (op->type == MinusNode)    result->number = left->number - right->number;
-	if (op->type == MultiplyNode) result->number = left->number * right->number;
-	if (op->type == DivideNode)   result->number = left->number / right->number;
-
-	return (AST_Node*)result;
 }
 
 AST_Node* Statement(TokenArray* ta, int* tlindex)
@@ -286,75 +208,145 @@ AST_Node* Statement(TokenArray* ta, int* tlindex)
 	{
 		*tlindex += 1;
 		d_printf("[statement] returning '%s' node\n", AST_TypeRepr(statement->type));
+		printf("success!");
 		return statement;
 	}
 	else
 	{
 		*tlindex = -1;
 		puts("[statement] hey a statement's gotta end with a semicolon\n");
+		AST_FPrint(stdout, statement);
 		return 0;
 	}
 }
 
 AST_Node* TypeDefinition(TokenArray* ta, int* tlindex)
 {
+	// not implemented yet
 	return 0;
 }
 
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex)
 {
-	AST_VariableDeclaration* vdecl = 0;
+	AST_Node* vdecl = 0;
 
-	/* variable decl : 
-		typename followed by identifier
-		typename then assignment
-	*/
-
-	/*
-	if first token is not an identifier, return 0;
-	if second token is not an identifier, return 0;
-	else, construct the two identifier nodes and the variable declaration node;
-	if next token is assignment token, 
+	/* variable decl :
+		identifier identifier
+		identifier then assignment
 	*/
 
 	int index = *tlindex;
 
-	// check that next two tokens are identifiers
+	/* grammar check: are the next two tokens identifiers?
+	{*/
 	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
 	IncrementWithBoundsCheck(index);
 	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
+	//}
 
-	// initialise vdecl node
-	vdecl = (AST_VariableDeclaration*) malloc(sizeof(AST_VariableDeclaration));
-	vdecl->type = VariableDeclarationNode;
-	vdecl->id = (AST_Identifier*) malloc(sizeof(AST_Identifier));
-	vdecl->rt_type = ta->tokens[index-1]->data;
-	vdecl->init = 0;
+	/* semantic check:
+	is the first token:
+		in the symbol table already AND
+		an identifier that refers to a type? */
+	Token* typetoken = ta->tokens[index-1];
+	SymbolTableEntry* typesymbolintable = SymbolTable_Find(global_symbol_table, typetoken->data);
+	SymbolTableEntry_TypeName* typenameentry = 0;
+	//{
+	if (typesymbolintable) // found the entry in the symbol table; check that it refers to a type
+	{
+		if (typesymbolintable->entrytype != TypeName)
+		{
+			*tlindex = -1;
+			printf("[variabledeclaration] hey, '%s' is not a type name\n", typesymbolintable->symbol);
+			return 0;
+		}
+		
+		else
+		{
+			typenameentry = (SymbolTableEntry_TypeName*) typesymbolintable;
+		}
+	}
 
-	// initialise identifier node
-	vdecl->id->type = IdentifierNode;
-	vdecl->id->tree = 0;
-	vdecl->id->name = ta->tokens[index]->data;
+	else
+	{
+		*tlindex = -1;
+		printf("[variabledeclaration] hey, '%s' is not a known type name\n", typetoken->data);
+		return 0;
+	}
+	//}
 
-	// check if there is assignment too
+	/* semantic check:
+	is the second token already in the symbol table? (it shouldn't be) */
+	Token* variabletoken = ta->tokens[index];
+	SymbolTableEntry* variableinsymboltable = SymbolTable_Find(global_symbol_table, variabletoken->data);
+	//{
+	if (variableinsymboltable)
+	{
+		if (variableinsymboltable->entrytype == VariableName)
+		{
+			SymbolTableEntry_VariableName* variable = (SymbolTableEntry_VariableName*) variableinsymboltable;
+			printf("[variabledeclaration] hey, '%s' has already been declared (with type '%s')\n",
+				variable->symbol,
+				variable->rt_type->symbol);
+
+			*tlindex = -1;
+			return 0;
+		}
+		
+		else
+		{
+			printf("[variabledeclaration] hey, the name '%s' already refers to a '%s'\n",
+				variabletoken->data,
+				SymbolTable_TypeRepr(variableinsymboltable->entrytype));
+
+			*tlindex = -1;
+			return 0;
+		}
+	}
+	//}
+
+	/* cool beans; construct a new entry for the variable in the symbol table
+	and initialise it properly */
+
+	// construct new entry for symbol table
+	SymbolTableEntry_VariableName* newvariable =
+		(SymbolTableEntry_VariableName*) malloc(sizeof(SymbolTableEntry_VariableName));
+	newvariable->entrytype = VariableName;
+	newvariable->symbol = variabletoken->data;
+	newvariable->tree = 0;
+	newvariable->rt_type = typenameentry;
+
+	// add new variable to the symbol table
+	SymbolTable_Add(global_symbol_table, (SymbolTableEntry*)newvariable);
+	
+	// check if the next token is the assignment token
 	IncrementWithBoundsCheck(index);
 	if (Token_isType(ta->tokens[index], "assignment"))
 	{
 		*tlindex = index - 1;
-		vdecl->init = Assignment(ta, tlindex);
+		vdecl = Assignment(ta, tlindex);
 		if (*tlindex == -1) return 0;
-		if (vdecl->init == 0)
+		if (vdecl == 0)
 		{
-			// "this should never happen" since it's an error for Assignment too
-			puts("[variabledeclaration] hey, expected assignment after '='");
-			*tlindex == -1;
+			// next token was assignment; assignment cannot fail without eror so this should never run
+			// (famous last words, I know)
+			puts("[varaibledeclaration] hey, I expected an assignment statement after '=' sign");
+			*tlindex = -1;
+			freeast((AST_Node*)vdecl);
 			return 0;
 		}
 	}
 
-	else *tlindex = index;
+	else
+	{
+		*tlindex = index;
+		// construct a "none" node
+		vdecl = (AST_Node*) malloc(sizeof(AST_Node));
+		vdecl->type = None;
+	}
 
-	return vdecl;
+	d_printf("exit variable declaration\n");
+	return (AST_Node*) vdecl;
 }
 
 AST_Node* Expression(TokenArray* ta, int* tlindex)
@@ -369,10 +361,7 @@ AST_Node* Expression(TokenArray* ta, int* tlindex)
 
 	AST_Node* expression = 0;
 
-	expression = Identifier(ta, tlindex);
-	if (*tlindex == -1) return 0;
-
-	if (!expression) expression = Assignment(ta, tlindex);
+	expression = Assignment(ta, tlindex);
 	if (*tlindex == -1) return 0;
 
 	if (!expression) expression = FunctionDefinition(ta, tlindex);
@@ -384,28 +373,58 @@ AST_Node* Expression(TokenArray* ta, int* tlindex)
 	if (!expression) expression = NumericExpression(ta, tlindex);
 	if (*tlindex == -1) return 0;
 
+	if (!expression) expression  = VariableReference(ta, tlindex);
+	if (*tlindex == -1) return 0;
+
+	d_printf("exit expression\n");
 	return expression;
 }
 
-AST_Node* Identifier(TokenArray* ta, int* tlindex)
+AST_Node* VariableReference(TokenArray* ta, int* tlindex)
 {
-	AST_Identifier* identifier = 0;
+	AST_Variable* identifier = 0;
 
-	/* identifiers are separated out by the lexer,
-	so there is no grammar to implement except "is it an identifier token?" */
+	int index = *tlindex;
 
-	if (Token_isType(ta->tokens[*tlindex], "identifier"))
+	/* grammar check:
+		is the current token an identifier type? */
+	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
+
+	/* semantic check:
+		1: is the identifier defined in the symbol table AND
+		2: does it refer to a variable? */
+
+	SymbolTableEntry* ste = SymbolTable_Find(global_symbol_table, ta->tokens[index]->data);
+	if (ste)
 	{
-		identifier = (AST_Identifier*) malloc(sizeof(AST_Identifier));
-		identifier->type = IdentifierNode;
-		identifier->tree = 0;
-		identifier->name = ta->tokens[*tlindex]->data;
-		identifier->rt_type = 0;
-		*tlindex += 1;
-		return identifier;
+		if (ste->entrytype == VariableName)
+		{
+			SymbolTableEntry_VariableName* variable = (SymbolTableEntry_VariableName*) ste;
+			IncrementWithBoundsCheck(index);
+			*tlindex = index;
+			identifier = (AST_Variable*) malloc(sizeof(AST_Variable));
+			identifier->type = VariableReferenceNode;
+			identifier->rt_type = variable->rt_type;
+			identifier->variable = variable;
+		}
+
+		else
+		{
+			printf("[identifier] hey, '%s' does not refer to a variable\n", ste->symbol);
+			*tlindex = -1;
+			return 0;
+		}
 	}
 
-	return 0;
+	else
+	{
+		printf("[identifier] hey, '%s' is not a known identifier\n", ta->tokens[index]->data);
+		*tlindex = -1;
+		return 0;
+	}
+
+	d_printf("exit variable reference\n");
+	return (AST_Node*)identifier;
 }
 
 AST_Node* Assignment(TokenArray* ta, int* tlindex)
@@ -418,30 +437,79 @@ AST_Node* Assignment(TokenArray* ta, int* tlindex)
 
 	int index = *tlindex;
 
+	/* grammar check:
+		first token should be an identifier
+		second token should be assignment
+		what follows should be an expression */
+	Token* idToken = 0;
+	AST_Node* rightside = 0;
+	//{
 	if (!Token_isType(ta->tokens[index], "identifier")) return 0;
-	Token* idToken = ta->tokens[index];
+	idToken = ta->tokens[index];
 
 	IncrementWithBoundsCheck(index);
 	if (!Token_isType(ta->tokens[index], "assignment")) return 0;
 
+	IncrementWithBoundsCheck(index);
+	*tlindex = index;
+	rightside = Expression(ta, tlindex);
+	if (*tlindex == -1) return 0;
+	if (!rightside)
+	{
+		puts("[assignment] hey, I expected an expression after the '='");
+		*tlindex = -1;
+		return 0;
+	}
+	//}
+
+	/* semantic check:
+		left side should be a known symbol that is a reference to a variable */
+	SymbolTableEntry* ste = SymbolTable_Find(global_symbol_table, idToken->data);
+	//{
+	if (ste)
+	{
+		if (ste->entrytype != VariableName)
+		{
+			printf("[assignment] hey, '%s' refers to a '%s', not a variable\n",
+				ste->symbol,
+				SymbolTable_TypeRepr(ste->entrytype));
+
+			*tlindex = -1;
+			return 0;
+		}
+	}
+
+	else
+	{
+		printf("[assignment] hey, '%s' is not a known variable\n", idToken->data);
+		*tlindex = -1;
+		return 0;
+	}
+	//}
+
+	/* semantic check:
+		type of left and right should be the same
+		later, this will be a check that they are compatible types */
+	SymbolTableEntry_VariableName* leftside = (SymbolTableEntry_VariableName*) ste;
+	//{
+	if (leftside->rt_type != rightside->rt_type)
+	{
+		printf("[assignment] hey, '%s' (left side) is a '%s', but the right side evaluates to a '%s'\n",
+			leftside->symbol, leftside->rt_type->symbol, rightside->rt_type->symbol);
+
+		*tlindex = -1;
+		return 0;
+	}
+	//}
+
 	// create new assignment node
 	assign = (AST_Assignment*) malloc(sizeof(AST_Assignment));
 	assign->type = AssignmentNode;
-	assign->left = idToken->data;
+	assign->left = leftside;
+	assign->right = rightside;
 
-	IncrementWithBoundsCheck(index);
-	*tlindex = index;
-	assign->right = Expression(ta, tlindex);
-	if (*tlindex == -1) return 0;
-	if (assign->right == 0)
-	{
-		puts("[assignment] hey, i expected an expression after the '=' sign");
-		*tlindex = -1;
-		freeast((AST_Node*)assign);
-		return 0;
-	}
-
-	return assign;
+	d_printf("exit assignment\n");
+	return (AST_Node*)assign;
 }
 
 AST_Node* FunctionDefinition(TokenArray* ta, int* tlindex)
@@ -458,6 +526,29 @@ AST_Node* FunctionCall(TokenArray* ta, int* tlindex)
 
 //AST_Node* FunctionCallParameters(TokenArray* ta, int* tlindex)
 
+int BinOpSemanticCheck(AST_BinOp* bop)
+{
+	/* semantic check:
+		left and right must be of the same type */
+
+	if (bop->left->rt_type != bop->right->rt_type)
+	{
+		printf("[binop] hey, the left and right sides have different types ('%s' and '%s', respectively)\n",
+			bop->left->rt_type->symbol,
+			bop->right->rt_type->symbol);
+		return 0;
+	}
+
+	/* semantic check:
+		left and right must be of Number type (for now) */
+
+	if (bop->left->rt_type != SymbolTable_Find(global_symbol_table, "Number"))
+	{
+		puts("[binop] hey, left and right must be 'Number' type");
+		return 0;
+	}
+}
+
 AST_Node* NumericExpression(TokenArray* ta, int* tlindex)
 {
 	/* numeric expression:
@@ -472,32 +563,45 @@ AST_Node* NumericExpression(TokenArray* ta, int* tlindex)
 	/* while the next token is a plus or minus,
 	construct a binary op node and set it's left and right sides accordingly */
 
-	while(Token_isType(ta->tokens[*tlindex], "plus") ||
-		Token_isType(ta->tokens[*tlindex], "minus") )
+	int index = *tlindex;
+
+	while(Token_isType(ta->tokens[index], "plus") ||
+		Token_isType(ta->tokens[index], "minus") )
 	{
-		if (Token_isType(ta->tokens[*tlindex], "plus"))
+		AST_BinOp* plusop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
+
+		if (Token_isType(ta->tokens[index], "plus")) plusop->type = PlusNode;
+		else plusop->type = MinusNode;
+
+		plusop->left = numericExpression;
+
+		IncrementWithBoundsCheck(index);
+		*tlindex = index;
+		plusop->right = NumericTerm(ta, tlindex);
+		if (*tlindex == -1) return 0;
+		if (plusop->right == 0)
 		{
-			*tlindex += 1;
-			AST_BinOp* plusop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
-			plusop->type = PlusNode;
-			plusop->left = numericExpression;
-			plusop->right = NumericTerm(ta, tlindex);
-			if (*tlindex == -1) return 0;
-			numericExpression = (AST_Node*)plusop;
+			printf("[expression] hey, I expected a term after '%s'\n", ta->tokens[*tlindex]->data);
+			*tlindex = -1;
+			return 0;
 		}
 
-		else if (Token_isType(ta->tokens[*tlindex], "minus"))
+		if (BinOpSemanticCheck(plusop))
 		{
-			*tlindex += 1;
-			AST_BinOp* minusop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
-			minusop->type = MinusNode;
-			minusop->left = numericExpression;
-			minusop->right = NumericTerm(ta, tlindex);
-			if (*tlindex == -1) return 0;
-			numericExpression = (AST_Node*)minusop;
+			plusop->rt_type = (SymbolTableEntry_TypeName*)SymbolTable_Find(global_symbol_table, "Number");
+			numericExpression = (AST_Node*) plusop;
 		}
+
+		else
+		{
+			*tlindex = -1;
+			return 0;
+		}
+
+		index = *tlindex;
 	}
 
+	d_printf("exit numeric expression\n");
 	return numericExpression;
 }
 
@@ -513,93 +617,132 @@ AST_Node* NumericTerm(TokenArray* ta, int* tlindex)
 	numericTerm = NumericFactor(ta, tlindex);
 	if (*tlindex == -1) return 0;
 
-	while(Token_isType(ta->tokens[*tlindex], "mult") ||
-		Token_isType(ta->tokens[*tlindex], "divide") )
+	int index = *tlindex;
+
+	while(Token_isType(ta->tokens[index], "mult") ||
+		Token_isType(ta->tokens[index], "divide") )
 	{
-		if (Token_isType(ta->tokens[*tlindex], "mult"))
+		AST_BinOp* multop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
+
+		if (Token_isType(ta->tokens[index], "mult")) multop->type = MultiplyNode;
+		else multop->type = DivideNode;
+
+		multop->left = numericTerm;
+
+		IncrementWithBoundsCheck(index);
+		*tlindex = index;
+
+		multop->right = NumericFactor(ta, tlindex);
+		if (*tlindex == -1) 
 		{
-			*tlindex += 1;
-			AST_BinOp* multop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
-			multop->type = MultiplyNode;
-			multop->left = numericTerm;
-			multop->right = NumericFactor(ta, tlindex);
+			freeast((AST_Node*)multop);
+			return 0;
+		}
 
-			if (*tlindex == -1) 
-			{
-				// recursively free the tree that has been allocated up to this point
-				return 0;
-			}
+		if (multop->right == 0)
+		{
+			puts("[term] hey, expected a factor");
+			freeast((AST_Node*)multop);
+			*tlindex = -1;
+			return 0;
+		}
 
+		if (BinOpSemanticCheck(multop))
+		{
+			multop->rt_type = (SymbolTableEntry_TypeName*)SymbolTable_Find(global_symbol_table, "Number");
 			numericTerm = (AST_Node*)multop;
 		}
 
-		else if (Token_isType(ta->tokens[*tlindex], "divide"))
+		else
 		{
-			*tlindex += 1;
-			AST_BinOp* divop = (AST_BinOp*) malloc(sizeof(AST_BinOp));
-			divop->type = DivideNode;
-			divop->left = numericTerm;
-			divop->right = NumericFactor(ta, tlindex);
-			if (*tlindex == -1) return 0;
-			numericTerm = (AST_Node*)divop;
+			*tlindex = -1;
+			return 0;
 		}
-	}
 
+		index = *tlindex;
+	}
+	
+	d_printf("exit numeric term\n");
 	return numericTerm;
 }
 
 AST_Node* NumericFactor(TokenArray* ta, int* tlindex)
 {
 	/* factor:
+		'(' numeric expression ')' 
 		'-' factor
 		number
 		identifier
-		factor '^' factor
-		'(' numeric expression ')' 
 	*/
 
 	AST_Node* numericFactor = 0;
+	int index = *tlindex;
 
-	if (Token_isType(ta->tokens[*tlindex], "l paren"))
+	// check first rule
+	if (Token_isType(ta->tokens[index], "l paren"))
 	{
-		*tlindex += 1;
+		IncrementWithBoundsCheck(index);
+		*tlindex = index;
 		numericFactor = NumericExpression(ta, tlindex);
 		if (*tlindex == -1) return 0;
 		if (!numericFactor)
 		{
-			puts("[numericfactor] expected numeric expression after left parentheses\n");
+			puts("[numericfactor] expected expression after left parentheses\n");
 			*tlindex = -1;
 			return 0;
 		}
-		if (!Token_isType(ta->tokens[*tlindex], "r paren"))
+
+		index = *tlindex;
+
+		// next token should now be the closing parentheses
+		if (!Token_isType(ta->tokens[index], "r paren"))
 		{
 			puts("[numericfactor] expected right parentheses after expression\n");
 			*tlindex = -1;
 			return 0;
 		}
-		*tlindex += 1;
+		IncrementWithBoundsCheck(index);
+		*tlindex = index;
 	}
 
-	if (!numericFactor)
+	// check second rule
+	if (!numericFactor && Token_isType(ta->tokens[index], "minus"))
 	{
-		if (Token_isType(ta->tokens[*tlindex], "minus"))
-		{
-			*tlindex += 1;
-			AST_UnaryMinus* um = (AST_UnaryMinus*) malloc(sizeof(AST_UnaryMinus));
-			um->type = UnaryMinus;
-			um->negate = NumericFactor(ta, tlindex);
-			if (*tlindex == -1) return 0;
+		AST_UnaryMinus* um = (AST_UnaryMinus*) malloc(sizeof(AST_UnaryMinus));
+		um->type = UnaryMinus;
 
-			numericFactor = (AST_Node*)um;
+		IncrementWithBoundsCheck(index);
+		*tlindex = index;
+		um->negate = NumericFactor(ta, tlindex);
+		if (*tlindex == -1)
+		{
+			freeast((AST_Node*)um);
+			return 0;
 		}
+
+		/* semantic check:
+			negate is only defined for Numbers */
+
+		if (um->negate->rt_type != SymbolTable_Find(global_symbol_table, "Number"))
+		{
+			puts("[factor] unary minus '-' is only defined for numbers at the moment");
+			*tlindex = -1;
+			freeast((AST_Node*)um);
+			return 0;
+		}
+
+		um->rt_type = um->negate->rt_type;
+
+		numericFactor = (AST_Node*)um;
 	}
 
 	if (!numericFactor) numericFactor = Number(ta, tlindex);
 	if (*tlindex == -1) return 0;
 
-	if (!numericFactor) numericFactor = Identifier(ta, tlindex);
+	if (!numericFactor) numericFactor = VariableReference(ta, tlindex);
 	if (*tlindex == -1) return 0;
-	
+
+	d_printf("exit numericfactor\n");
 	return (AST_Node*)numericFactor;
 }
 
@@ -642,8 +785,6 @@ AST_Node* Number(TokenArray *ta, int* tlindex)
 		else IncrementWithBoundsCheck(index);
 	}
 
-	if (index > ta->len) index = ta->len; // special case at end of input
-
 	/* the index variable now points to the last token in the number (exclusive)
 	hence, we can build the number by concatenating all the data strings. */
 
@@ -657,11 +798,13 @@ AST_Node* Number(TokenArray *ta, int* tlindex)
 	AST_Number* numb = (AST_Number*) malloc(sizeof(AST_Number));
 	numb->type = NumberNode;
 	numb->number = atof(number);
+	numb->rt_type = (SymbolTableEntry_TypeName*)SymbolTable_Find(global_symbol_table, "Number");
 	*tlindex = index;
 
 	// free number (strappend makes calls to malloc)
 	free(number);
 
+	d_printf("exit number\n");
 	return (AST_Node*)numb;
 }
 
@@ -711,7 +854,30 @@ void AST_FPrint(FILE* fp, AST_Node* tree)
 		indentLevel++;
 		AST_FPrint(fp, (AST_Node*)bop->left);
 		indentLevel--;
+	}
 
+	else if (tree->type == VariableReferenceNode)
+	{
+		AST_Variable* var = (AST_Variable*) tree;
+		printIndent(fp, indentLevel);
+		fprintf(fp, "var:'%s'\n", var->variable->symbol);
+	}
+
+	else if (tree->type == AssignmentNode)
+	{
+		AST_Assignment* assign = (AST_Assignment*) tree;
+
+		indentLevel++;
+		AST_FPrint(fp, (AST_Node*)assign->right);
+		indentLevel--;
+
+		printIndent(fp, indentLevel);
+		fprintf(fp, "assignment\n");
+
+		indentLevel++;
+		printIndent(fp, indentLevel);
+		fprintf(fp, "var:%s\n", assign->left->symbol);
+		indentLevel--;
 	}
 
 	else if (tree->type == UnaryMinus)

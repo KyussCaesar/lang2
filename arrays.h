@@ -1,6 +1,9 @@
 #ifndef ARRAYS_H
 #define ARRAYS_H
 
+#include<stdio.h>
+#include<stdlib.h>
+
 /* defines stuff for my custom arrays */
 
 /* I know this is preprocessor abuse, but I think for my purpose it 

@@ -1,0 +1,6 @@
+Number hello;
+Number hi = 3;
+hello = hi + 2;
+hello;
+hi = 4;
+hello;

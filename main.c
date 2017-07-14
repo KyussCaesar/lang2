@@ -11,7 +11,6 @@
 /* TODOS (no particular order):
 Big:
 TODO Replace "char*" types with enumerated types (e.g token types)
-TODO Symbol-table checking will be done at "compile" time (when building the AST);
 TODO Reference counting for trees.
 TODO Move parsing code to a dedicated file
 
@@ -278,6 +277,11 @@ int main(int argc, char ** argv)
 	}
 
 	global_symbol_table = New(SymbolTable, 0);
+	SymbolTableEntry_TypeName numbertype;
+	numbertype.entrytype = TypeName;
+	numbertype.symbol = "Number";
+
+	SymbolTable_Add(global_symbol_table, (SymbolTableEntry*)&numbertype);
 
 	puts("\noutput:");
 	int parseIndex = 0;
@@ -285,18 +289,28 @@ int main(int argc, char ** argv)
 	while(parseIndex < tokens->len)
 	{
 		AST_Node* statement = Statement(tokens, &parseIndex);
-		if (parseIndex == -1) return 1;
+		if (parseIndex == -1) 
+		{
+			fflush(stdout);
+			return 1;
+		}
+
 		if (statement) 
 		{
-			if (DEBUG_BUILD) AST_FPrint(stdout, statement);
+			if (DEBUG_BUILD) 
+			{
+				puts("");
+				AST_FPrint(stdout, statement);
+				puts("");
+			}
+
 			result = (AST_Number*)execute(statement);
 			if (result)
 			{
-				if (result->type == NumberNode) printf("%lf\n", result->number);
+				if (result->type == NumberNode) printf("\n%lf\n\n", result->number);
 			}
 
 			freeast((AST_Node*)result);
-			freeast(statement);
 		}
 	}
 

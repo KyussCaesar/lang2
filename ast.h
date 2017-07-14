@@ -1,11 +1,20 @@
 #ifndef AST_H
 #define AST_H
 
+/*
+building an ast:
+	check that grammar is valid
+	check that a variable has been declared (i.e, added to the symbol table) before it is used
+	check that a variable is only declared once
+	check that types are compatible
+*/
+
 #include<stdlib.h>
 #include<stdio.h>
 
 #include"helpers.h"
 #include"token.h"
+#include"symboltable.h"
 
 /* stuff concerning the ASTs */
 
@@ -21,6 +30,7 @@ functions:
 
 // AST Node Definitions ========================================================
 
+/* definition is in symboltable to resolve circular dependency
 // AST node types
 typedef enum {
 	None,
@@ -29,12 +39,11 @@ typedef enum {
 	MinusNode,
 	MultiplyNode,
 	DivideNode,
-	IdentifierNode,
+	VariableReferenceNode,
 	AssignmentNode,
 	UnaryMinus,
-	VariableDeclarationNode
 }
-AST_Type;
+AST_Type;*/
 
 // converts type to string for printing
 // result does not need to be freed.
@@ -45,10 +54,12 @@ name: basic node
 description: "base class" for AST nodes
 execution: not executed
 */
-typedef struct {
+/*
+typedef struct astnode {
 	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
 }
-AST_Node;
+AST_Node;*/
 
 /*
 name: number node
@@ -57,6 +68,7 @@ execution: terminal; returns itself
 */
 typedef struct {
 	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
 	double number;
 }
 AST_Number;
@@ -68,9 +80,9 @@ execution: execute left, execute right, return result of operation
 */
 typedef struct {
 	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
 	AST_Node* left;
 	AST_Node* right;
-	char* rt_type;
 }
 AST_BinOp;
 
@@ -81,11 +93,10 @@ execution: execute the tree and return the result
 */
 typedef struct {
 	AST_Type type;
-	AST_Node* tree;
-	char* name;
-	char* rt_type;
+	SymbolTableEntry_TypeName* rt_type;
+	SymbolTableEntry_VariableName* variable;
 }
-AST_Identifier;
+AST_Variable;
 
 /*
 name: assignment node
@@ -94,23 +105,10 @@ execution: changes left to point to the same tree as right, returns left.
 */
 typedef struct {
 	AST_Type type;
-	char* left; // variable name
+	SymbolTableEntry_VariableName* left; // variable in the symbol table
 	AST_Node* right;
 }
 AST_Assignment;
-
-/*
-name : variable declaration node
-description: node to represent variable declaration
-execution: add identifier to the symbol table
-*/
-typedef struct {
-	AST_Type type;
-	AST_Identifier* id;      // variable that is being declared
-	char* rt_type; // type of the variable that is being declared
-	AST_Assignment* init;
-}
-AST_VariableDeclaration;
 
 /*
 name: unary minus
@@ -119,6 +117,7 @@ execution: unary minus
 */
 typedef struct {
 	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
 	AST_Node* negate;
 }
 AST_UnaryMinus;
@@ -131,9 +130,6 @@ AST_Node* execute(AST_Node* root);
 // frees an ast
 /* this function is called when building an ast has failed */
 void freeast(AST_Node* n);
-
-// does runtime type checking and execution of binary op nodes (+-*/)
-AST_Node* BinOpCheck(AST_Node* root);
 
 // Building ASTs from the input tokens =============================================
 
@@ -153,13 +149,19 @@ if rule failed without error
 
 if rule failed with error
 	returns zero and sets tlindex to -1
+
+VariableDeclaration:
+	if a variable declaration is made, but no assignment in the same statement,
+	returns a "none" node
+
+	if it's declaration + assignment; then returns an assignment node
 */
 
 AST_Node* Statement(TokenArray* ta, int* tlindex);
 AST_Node* TypeDefinition(TokenArray* ta, int* tlindex);
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex);
 AST_Node* Expression(TokenArray* ta, int* tlindex);
-AST_Node* Identifier(TokenArray* ta, int* tlindex);
+AST_Node* VariableReference(TokenArray* ta, int* tlindex);
 AST_Node* Assignment(TokenArray* ta, int* tlindex);
 AST_Node* FunctionDefinition(TokenArray* ta, int* tlindex);
 //AST_Node* FunctionDefinitionParameters(TokenArray* ta, int* tlindex);
