@@ -208,7 +208,6 @@ AST_Node* Statement(TokenArray* ta, int* tlindex)
 	{
 		*tlindex += 1;
 		d_printf("[statement] returning '%s' node\n", AST_TypeRepr(statement->type));
-		printf("success!");
 		return statement;
 	}
 	else

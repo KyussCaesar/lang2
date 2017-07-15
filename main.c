@@ -13,6 +13,8 @@ Big:
 TODO Replace "char*" types with enumerated types (e.g token types)
 TODO Reference counting for trees.
 TODO Move parsing code to a dedicated file
+TODO Command line parameters
+TODO Files
 
 Small:
 TODO Function that prints the current statement (while building AST; for errors)
