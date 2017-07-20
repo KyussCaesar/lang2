@@ -122,6 +122,29 @@ typedef struct {
 }
 AST_UnaryMinus;
 
+typedef struct {
+	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
+	AST_Node* bexpr;	// the condition to evaluate
+	AST_Node* trueTree; // stuff to execute for true case
+	AST_Node* falseTree;// stuff to execute for false case
+}
+AST_If;
+
+typedef struct {
+	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
+	char val;
+}
+AST_Boolean;
+
+typedef struct {
+	AST_Type type;
+	SymbolTableEntry_TypeName* rt_type;
+	AST_Node* negate;
+}
+AST_LogicalNot;
+
 // AST Runtime Functions ============================================================
 
 // defines execution of all ast node types
@@ -158,6 +181,7 @@ VariableDeclaration:
 */
 
 AST_Node* Statement(TokenArray* ta, int* tlindex);
+AST_Node* IfStatement(TokenArray* ta, int* tlindex);
 AST_Node* TypeDefinition(TokenArray* ta, int* tlindex);
 AST_Node* VariableDeclaration(TokenArray* ta, int* tlindex);
 AST_Node* Expression(TokenArray* ta, int* tlindex);
@@ -171,6 +195,10 @@ AST_Node* NumericExpression(TokenArray* ta, int* tlindex);
 AST_Node* NumericTerm(TokenArray* ta, int* tlindex);
 AST_Node* NumericFactor(TokenArray* ta, int* tlindex);
 AST_Node* Number(TokenArray* ta, int* tlindex);
+AST_Node* BooleanExpression(TokenArray* ta, int* tlindex);
+AST_Node* BooleanTerm(TokenArray* ta, int* tlindex);
+AST_Node* BooleanFactor(TokenArray* ta, int* tlindex);
+AST_Node* BooleanLiteral(TokenArray* ta, int* tlindex);
 
 // prints the tree to file fp
 void AST_FPrint(FILE* fp, AST_Node* tree);

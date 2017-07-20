@@ -1,0 +1,12 @@
+Number hello = 3;
+Number hi = hello + 3;
+
+if hi == 6
+	hi;
+	hello;;
+
+hello = 4;
+
+if TRUE
+	hi;
+	hello;;

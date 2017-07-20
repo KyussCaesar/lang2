@@ -18,6 +18,18 @@ TODO Files
 
 Small:
 TODO Function that prints the current statement (while building AST; for errors)
+
+IDEA:
+orthogonalise: put each feature inside it's own file/s
+	within those files, you define
+		relevant tokens
+		grammar rules
+		ast node types
+		execution of new nodes
+
+IDEA:
+each ast node comes with instructions;
+	i.e, a pointer to a function that defines execution for that node
 */
 
 SymbolTable* global_symbol_table = 0;
@@ -71,7 +83,8 @@ int main(int argc, char ** argv)
 {
 	/* reads from stdin */
 	char * buffer = (char*) malloc(1000);
-	if (buffer == 0) {
+	if (buffer == 0)
+	{
 		fprintf(stderr, "hey; input buffer allocation failed. terminating...\n");
 		return 1;
 	}
@@ -108,7 +121,9 @@ int main(int argc, char ** argv)
 		else if (isalpha(buffer[bufindex]))
 		{
 			currentToken = getToken(buffer, &bufindex, isalpha);
-			tokenType = "identifier";
+
+			if (!strcmp(currentToken, "if")) tokenType = "keyword";
+			else tokenType = "identifier";
 		}
 
 		// DIGITS
@@ -256,6 +271,28 @@ int main(int argc, char ** argv)
 			tokenType = "comma";
 		}
 
+		// BOOLEAN OPERATORS (except equality)
+		else if (buffer[bufindex] == '|')
+		{
+			bufindex++;
+			currentToken = "|";
+			tokenType = "logical or";
+		}
+
+		else if (buffer[bufindex] == '&')
+		{
+			bufindex++;
+			currentToken = "&";
+			tokenType = "logical and";
+		}
+
+		else if (buffer[bufindex] == '!')
+		{
+			bufindex++;
+			currentToken = "!";
+			tokenType = "logical not";
+		}
+
 		// UNRECOGNISED TOKEN
 		else
 		{
@@ -279,11 +316,16 @@ int main(int argc, char ** argv)
 	}
 
 	global_symbol_table = New(SymbolTable, 0);
+
 	SymbolTableEntry_TypeName numbertype;
 	numbertype.entrytype = TypeName;
 	numbertype.symbol = "Number";
-
 	SymbolTable_Add(global_symbol_table, (SymbolTableEntry*)&numbertype);
+
+	SymbolTableEntry_TypeName booleantype;
+	booleantype.entrytype = TypeName;
+	booleantype.symbol = "Boolean";
+	SymbolTable_Add(global_symbol_table, (SymbolTableEntry*)&booleantype);
 
 	puts("\noutput:");
 	int parseIndex = 0;

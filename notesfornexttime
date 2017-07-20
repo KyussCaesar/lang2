@@ -1,0 +1,138 @@
+notes for next time
+
+over-arching idea: plan things better, have a well-defined scope for the different parts.
+	Keeping the different jobs separate should also help;
+	e.g. keep the ast-builder and semantic checker separate (because you end up making assumptions about the context in which a function is being called).
+
+features:
+	everything referential
+	static type checking
+	strong typing
+
+process:
+	the idea is the first the lexer will run over the whole file,
+	then the parser will build the entire AST.
+	parser will do grammar as well as semantics
+	finally, interpreter will execute the AST.
+
+	at first, define a sort of interface for the main language features to use;
+	this would be things like
+		new types of tokens that the lexer should look for
+		prototypes for ast nodes
+
+	new features would include some header that defines/declares these things, and then
+	the features would implement it themseleves.
+
+	example;
+	adding if statements:
+		define a token for the word 'if'
+		define an ast node for if statements, which contains
+			condition to evaluate,
+			node to execute if true,
+			node to execute if false.
+		as well as stuff that's in a 'base' ast node.
+		define function that implements execution of an 'if' node
+	
+	when interpreter executes the program; it will recursively call the execute 
+	function on the nodes, as defined by the nodes themselves
+
+	also have some headers that define/declare stuff for other features that are 
+	dependent on it;, e.g 'if' requires boolean type.
+
+	also: write functions that initialise new nodes for you!
+
+	perhaps a wrapper for free() that only calls free() if it was allocated by malloc?
+
+	#define allochandler(ptr, mode, amount) ptr = mempls(mode, ptr, amount)
+
+	void* mempls(char* mode, void* ptr, size_t amount)
+	{
+		static listOfPointersThatPointToMallocdMemory
+
+		if mode == malloc:
+			add ptr to the list of pointers that point to malloc'd memory
+			return malloc(amount);
+
+		if mode == free:
+			check if ptr is in the list of pointers that point to malloc'd memory
+			if it is:
+				free(ptr);
+				remove ptr from list of ptrs that ptr to malloc'd memory
+			else
+				return 0;
+
+		else:
+			debugprint("invalid 'mode' parameter for mempls: '{mode}'");
+	}
+
+	make Statement (or whatever the top level ast building function is) the only thing
+	that has to handle freeing an ast if an error occurs.
+
+	Unicode support! Don't just do ascii
+
+	each new feature also has to define how to print it's ast nodes
+
+	better error handling, just in general
+
+	use proper "big boy" types (size_t instead of 'int' for array lengths, etc)
+
+	do "struct inheritance" properly (that way you don't need to use casts everywhere)
+
+	TESTING:
+		at the moment i don't really know how to test lang2, or even what to test *for*.
+		testing should be easy to run (make test) and should provide a report on which
+		tests succeeded and which tests failed.
+
+AST_Node:
+	AST_NodeType nodetype: 	the type of this node
+	Type type:				the type of whatever this node returns (if applicable;
+								used for static type checking). example:
+								return type of adding two numbers is a number.
+
+	AST_Node* (*execute)(AST_Node*)
+		
+		description:
+			all nodes know how to execute themselves.
+			all execute functions must:
+				return a new node (which can be free'd once execution is finished) or
+				return 0, if executing the node doesn't return anything.
+		
+
+typedef struct {
+	Token** tokens;			// list of token pointers
+	size_t len;				// number of elements in the array
+	size_t cap;				// maximum number of elements in the array
+	size_t currentToken;	// index of the "current" token
+}
+TokenList;
+
+TokenList* Lexer(FILE* file, TokenTable tokens);
+
+	parameters:
+		file:			file to tokenise
+		TokenTable:		defines all the types of tokens that the lexer recognises
+
+	returns:
+		TokenList:		list of tokens from input file
+	
+	description:
+		uses table (which defines the tokens) to tokenise file. returns a struct that 
+		has a list of all the tokens.
+
+		I'm thinking that the token table would be a global thing, new features would 
+		just add the tokens they need to the global array.
+
+Token* nextToken(TokenList* ts);
+
+	description:
+		updates the "currentToken" parameter and returns a poitner to the new 
+		"current" token.
+
+Token* currentToken(TokenList* ts);
+
+	description:
+		returns a pointer to the current token
+
+Stuff that I think worked well;
+(ab)using the preprocessor for the custom array type.
+the way I did the symbol table worked nicely I think (althought it probably hasn't been around long enough for any problems to show up).

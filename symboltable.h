@@ -30,6 +30,7 @@ SymbolTableEntry_TypeName;
 typedef enum {
 	None,
 	NumberNode,
+	BooleanNode,
 	PlusNode,
 	MinusNode,
 	MultiplyNode,
@@ -37,6 +38,11 @@ typedef enum {
 	VariableReferenceNode,
 	AssignmentNode,
 	UnaryMinus,
+	IfNode,
+	LogicalOrNode,
+	LogicalAndNode,
+	LogicalNotNode,
+	LogicalEqualsNode
 }
 AST_Type;
 
